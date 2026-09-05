@@ -8,7 +8,7 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Mail, Lock, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
 
@@ -137,7 +137,18 @@ export default function LoginPage() {
             </button>
           </form>
 
-
+          {/* Sign up link */}
+          <div className="mt-6 pt-5 border-t border-surface-border text-center">
+            <p className="text-xs text-slate-400">
+              Don't have an account?{' '}
+              <Link
+                to="/signup"
+                className="text-brand-400 hover:text-brand-300 font-semibold underline underline-offset-4 ml-1"
+              >
+                Create an account →
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

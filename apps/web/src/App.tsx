@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 import PortalLayout from './components/PortalLayout';
 import LoginPage from './features/auth/LoginPage';
+import SignupPage from './features/auth/SignupPage';
 
 // Lane A Pages
 import DashboardPage from './features/dashboard/DashboardPage';
@@ -39,6 +40,7 @@ export default function App() {
         <Routes>
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
 
           {/* ── Internal app (/app/*) — requires internal role ── */}
           <Route

@@ -51,9 +51,16 @@ function signToken(payload: JwtPayload): string {
 
 // ── Service Functions ──────────────────────────────────────────────────────────
 
+export async function listPublicCustomers(): Promise<Array<{ id: string; name: string }>> {
+  return prisma.customer.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+}
+
 /**
- * Create a new user account. Only ADMIN should call this in production;
- * the endpoint is open for hackathon convenience.
+ * Create a new user account (supports Sales Rep & Customer registration).
  */
 export async function signup(
   email: string,
@@ -62,15 +69,62 @@ export async function signup(
   lastName: string,
   role: UserRole,
   customerId?: string,
+  companyName?: string,
 ): Promise<{ user: SafeUser; token: string }> {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     throw Object.assign(new Error('Email already in use'), { status: 409 });
   }
 
+  let finalCustomerId: string | null = customerId ?? null;
+
+  if (role === UserRole.CUSTOMER) {
+    let companyLabel = companyName?.trim();
+
+    if (!finalCustomerId && companyLabel) {
+      let existingCustomer = await prisma.customer.findFirst({
+        where: { name: { equals: companyLabel, mode: 'insensitive' } },
+      });
+      if (!existingCustomer) {
+        const defaultTier =
+          (await prisma.discountTier.findFirst({ where: { name: 'Bronze' } })) ??
+          (await prisma.discountTier.findFirst({ orderBy: { defaultDiscountCeiling: 'asc' } }));
+        if (!defaultTier) {
+          throw Object.assign(new Error('No discount tier available to create customer'), { status: 500 });
+        }
+        existingCustomer = await prisma.customer.create({
+          data: {
+            name: companyLabel,
+            discountTierId: defaultTier.id,
+            isActive: true,
+          },
+        });
+      }
+      finalCustomerId = existingCustomer.id;
+      companyLabel = existingCustomer.name;
+    }
+
+    if (!finalCustomerId) {
+      throw Object.assign(new Error('Please provide your company or organization name'), { status: 400 });
+    }
+
+    // Enforce strictly ONE user account per company
+    const existingUserForCompany = await prisma.user.findFirst({
+      where: { customerId: finalCustomerId },
+    });
+    if (existingUserForCompany) {
+      throw Object.assign(
+        new Error(
+          `An account already exists for ${companyLabel || 'this company'}. Only one account is permitted per company. Please sign in instead.`,
+        ),
+        { status: 409 },
+      );
+    }
+  }
+
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const user = await prisma.user.create({
-    data: { email, passwordHash, role, firstName, lastName, customerId: customerId ?? null },
+    data: { email, passwordHash, role, firstName, lastName, customerId: finalCustomerId },
   });
 
   const token = signToken({ userId: user.id, role: user.role, email: user.email, customerId: user.customerId });

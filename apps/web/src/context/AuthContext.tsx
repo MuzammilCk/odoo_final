@@ -23,10 +23,21 @@ export interface AuthUser {
   isActive: boolean;
 }
 
+export interface SignupPayload {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  customerId?: string;
+  companyName?: string;
+}
+
 interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
+  signup: (payload: SignupPayload) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -71,6 +82,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const signup = useCallback(async (payload: SignupPayload) => {
+    const res = await fetch('/api/v1/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const body = await res.json() as { error?: string; details?: { fieldErrors?: Record<string, string[]> } };
+      let errMsg = body.error ?? 'Signup failed';
+      if (body.details?.fieldErrors) {
+        const firstField = Object.values(body.details.fieldErrors).flat()[0];
+        if (firstField) errMsg = firstField;
+      }
+      throw new Error(errMsg);
+    }
+
+    const body = await res.json() as { user: AuthUser; token: string };
+    setUser(body.user);
+    setToken(body.token);
+    try {
+      localStorage.setItem('df360_user', JSON.stringify(body.user));
+      localStorage.setItem('df360_token', body.token);
+    } catch (e) {
+      console.warn('Failed to save to localStorage', e);
+    }
+  }, []);
+
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
@@ -83,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, token, login, signup, logout, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

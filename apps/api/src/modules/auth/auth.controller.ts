@@ -22,11 +22,24 @@ const signupSchema = z.object({
   lastName: z.string().min(1),
   role: z.enum(['ADMIN', 'SALES_REP', 'MANAGER', 'FINANCE_OPS', 'CUSTOMER']),
   customerId: z.string().uuid().optional(),
+  companyName: z.string().optional(),
 });
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+});
+
+// ── GET /api/v1/auth/customers — List active organizations for signup ───────────
+
+authRouter.get('/customers', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const customers = await AuthService.listPublicCustomers();
+    res.json({ customers });
+  } catch (err: unknown) {
+    const e = err as { message: string };
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── POST /api/v1/auth/signup ──────────────────────────────────────────────────
@@ -46,6 +59,7 @@ authRouter.post('/signup', async (req: Request, res: Response): Promise<void> =>
       parsed.data.lastName,
       parsed.data.role,
       parsed.data.customerId,
+      parsed.data.companyName,
     );
     res.status(201).json(result);
   } catch (err: unknown) {
