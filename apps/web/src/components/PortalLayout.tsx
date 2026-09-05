@@ -9,6 +9,7 @@
 
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { FileText, LogOut, Building2 } from 'lucide-react';
 
 export default function PortalLayout() {
   const { user, logout } = useAuth();
@@ -20,45 +21,60 @@ export default function PortalLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
+    <div className="min-h-screen bg-surface-canvas text-slate-100 antialiased">
       {/* Top nav bar — distinct from internal sidebar */}
-      <header className="bg-gray-900 border-b border-gray-800">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+      <header className="bg-surface-base/90 backdrop-blur border-b border-surface-border sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-xl font-bold text-white">
-              Deal<span className="text-brand-500">Flow</span>
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-deal-500 to-emerald-700 flex items-center justify-center text-white font-extrabold text-xs shadow-sm shadow-deal-500/20">
+              D
+            </div>
+            <span className="text-lg font-bold text-white tracking-tight">
+              Deal<span className="text-deal-400">Flow</span>
             </span>
-            <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">Customer Portal</span>
+            <span className="text-[11px] font-medium text-deal-300 bg-deal-500/10 border border-deal-500/20 px-2 py-0.5 rounded-full flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-deal-400"></span>
+              Customer Portal
+            </span>
           </div>
 
-          <nav className="flex items-center gap-6">
+          <nav className="flex items-center gap-2">
             <NavLink
               to="/portal/quotations"
               className={({ isActive }) =>
-                `text-sm transition ${isActive ? 'text-brand-400 font-medium' : 'text-gray-400 hover:text-gray-200'}`
+                `flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition duration-150 ${
+                  isActive
+                    ? 'bg-deal-500/15 text-deal-300 ring-1 ring-deal-500/30 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-surface-elevated'
+                }`
               }
             >
-              My Quotations
+              <FileText size={15} />
+              <span>My Quotations</span>
             </NavLink>
           </nav>
 
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-400">
-              {user?.firstName} {user?.lastName}
-            </span>
+            <div className="flex items-center gap-2 text-sm text-slate-300 bg-surface-card px-3 py-1 rounded-full border border-surface-border">
+              <Building2 size={13} className="text-slate-400" />
+              <span className="font-medium text-xs">
+                {user?.firstName} {user?.lastName}
+              </span>
+            </div>
             <button
               id="portal-logout"
               onClick={handleLogout}
-              className="text-sm text-gray-500 hover:text-red-400 transition"
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-rose-400 px-2 py-1.5 rounded-lg hover:bg-surface-elevated transition cursor-pointer"
             >
-              Sign out
+              <LogOut size={13} />
+              <span>Sign out</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* Page content */}
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-6 py-8">
         <Outlet />
       </main>
     </div>

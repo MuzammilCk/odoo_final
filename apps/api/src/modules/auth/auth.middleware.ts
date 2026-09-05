@@ -7,9 +7,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import type { JwtPayload } from './auth.service.js';
-
-const JWT_SECRET = process.env.JWT_SECRET ?? 'change-me';
+import { getJwtSecret, type JwtPayload } from './auth.service.js';
 
 // Extend Express Request to carry the decoded user (§8.20)
 declare global {
@@ -35,7 +33,7 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const payload = jwt.verify(token, getJwtSecret()) as JwtPayload;
     req.user = payload;
     next();
   } catch {

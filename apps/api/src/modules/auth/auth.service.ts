@@ -11,7 +11,9 @@ import { prisma } from '../../lib/prisma.js';
 import { UserRole } from '@prisma/client';
 
 const BCRYPT_ROUNDS = 12;
-const JWT_SECRET = process.env.JWT_SECRET ?? 'change-me';
+export function getJwtSecret(): string {
+  return process.env.JWT_SECRET || 'dealflow360-dev-secret-change-in-production';
+}
 const JWT_EXPIRES_IN = '8h'; // short-lived per §8.19
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -44,7 +46,7 @@ function toSafeUser(user: {
 }
 
 function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
 }
 
 // ── Service Functions ──────────────────────────────────────────────────────────

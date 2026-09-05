@@ -8,12 +8,12 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { Mail, Lock, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, user } = useAuth();
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -32,96 +32,135 @@ export default function LoginPage() {
     }
   }
 
-  // Redirect after successful login (user state is updated in AuthContext)
-  // We use a separate effect-free approach: navigate in a useEffect-free pattern
-  // by relying on the AuthContext update triggering a re-render then redirecting
+  // Declarative redirect after successful login
   if (user) {
-    navigate(user.role === 'CUSTOMER' ? '/portal/quotations' : '/app/dashboard', { replace: true });
-    return null;
+    return <Navigate to={user.role === 'CUSTOMER' ? '/portal/quotations' : '/app/dashboard'} replace />;
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-surface-base relative overflow-hidden px-4">
+      {/* Ambient background glows */}
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-600/20 rounded-full blur-[128px] pointer-events-none" />
+      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-deal-500/15 rounded-full blur-[128px] pointer-events-none" />
+
+      <div className="w-full max-w-md relative z-10">
         {/* Logo / title */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">
-            Deal<span className="text-brand-500">Flow</span>360
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 text-white font-black text-xl shadow-lg shadow-brand-500/30 mb-3 ring-1 ring-white/20">
+            D
+          </div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            Deal<span className="text-brand-400">Flow</span>360
           </h1>
-          <p className="text-gray-400 mt-2 text-sm">B2B Sales Operations Platform</p>
+          <p className="text-slate-400 mt-1 text-sm">Enterprise CPQ & Sales Operations Platform</p>
         </div>
 
         {/* Card */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
-          <h2 className="text-xl font-semibold text-white mb-6">Sign in to your account</h2>
+        <div className="bg-surface-card/95 backdrop-blur-xl border border-surface-border rounded-2xl p-7 shadow-2xl shadow-black/70">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-lg font-bold text-white tracking-tight">Welcome back</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Enter your credentials to sign in</p>
+            </div>
+            <span className="p-2 rounded-lg bg-surface-elevated text-brand-400 border border-surface-border">
+              <ShieldCheck size={18} />
+            </span>
+          </div>
 
           {error && (
-            <div id="login-error" className="mb-4 p-3 bg-red-950 border border-red-800 rounded-lg text-red-300 text-sm">
-              {error}
+            <div id="login-error" className="mb-4 p-3 bg-rose-950/40 border border-rose-800/80 rounded-xl text-rose-300 text-xs flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
           <form id="login-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
-                Email address
+              <label htmlFor="email" className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+                Email Address
               </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
-                placeholder="you@example.com"
-              />
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <Mail size={16} />
+                </span>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-surface-elevated/70 border border-surface-border rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
+                  placeholder="name@company.com"
+                />
+              </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="password" className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <Lock size={16} />
+                </span>
+                <input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-surface-elevated/70 border border-surface-border rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
+                  placeholder="••••••••"
+                />
+              </div>
             </div>
 
             <button
               id="login-submit"
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition duration-150"
+              className="w-full py-2.5 px-4 bg-brand-600 hover:bg-brand-500 active:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl shadow-md shadow-brand-600/25 transition duration-150 flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Signing in…</span>
+                </>
+              ) : (
+                <>
+                  <span>Sign in</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
             </button>
           </form>
 
           {/* Demo credentials hint */}
-          <div className="mt-6 pt-5 border-t border-gray-800">
-            <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Demo accounts (password: demo123)</p>
-            <div className="grid grid-cols-2 gap-1 text-xs text-gray-400">
+          <div className="mt-6 pt-5 border-t border-surface-border">
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                Quick Demo Access
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono">pwd: demo123</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
               {[
-                ['admin@demo.com', 'Admin'],
-                ['rep@demo.com', 'Sales Rep'],
-                ['manager@demo.com', 'Manager'],
-                ['finance@demo.com', 'Finance'],
-                ['customer@acme.com', 'Customer'],
-              ].map(([email, label]) => (
+                ['admin@demo.com', 'Admin', 'border-brand-500/30 text-brand-300'],
+                ['rep@demo.com', 'Sales Rep', 'border-deal-500/30 text-deal-300'],
+                ['manager@demo.com', 'Manager', 'border-amber-500/30 text-amber-300'],
+                ['finance@demo.com', 'Finance Ops', 'border-purple-500/30 text-purple-300'],
+                ['customer@acme.com', 'Customer', 'border-emerald-500/30 text-emerald-300 col-span-2'],
+              ].map(([demoEmail, label, style]) => (
                 <button
-                  key={email}
+                  key={demoEmail}
                   type="button"
-                  onClick={() => { setEmail(email); setPassword('demo123'); }}
-                  className="text-left px-2 py-1 rounded hover:bg-gray-800 hover:text-brand-400 transition text-xs"
+                  onClick={() => { setEmail(demoEmail); setPassword('demo123'); }}
+                  className={`text-left px-2.5 py-1.5 rounded-lg bg-surface-elevated/80 border ${style} hover:bg-surface-elevated hover:brightness-125 transition text-xs flex items-center justify-between group cursor-pointer`}
                 >
-                  {label}
+                  <span className="font-medium">{label}</span>
+                  <span className="text-[10px] opacity-60 font-mono group-hover:opacity-100">Fill</span>
                 </button>
               ))}
             </div>

@@ -66,7 +66,7 @@ DealFlow360 use cases are grouped into nine areas:
 | Configure approval chains | ✓ | ✗ | ✓ | ✗ | ✗ |
 | Configure warehouses | ✓ | ✗ | ✗ | ✗ | ✗ |
 | Configure subscriptions | ✓ | ✗ | ✗ | ✗ | ✗ |
-| Create quotation | ✓* | ✓ | ✗ | ✗ | ✗ |
+| Create quotation | ✗ | ✓ | ✗ | ✗ | ✗ |
 | Build/edit quotation | ✓* | ✓ | ✗ | ✗ | ✗ |
 | Apply discount | ✓* | ✓ | ✗ | ✗ | ✗ |
 | View live margin | ✓* | ✓ | ✓ | ✓ | ✗ |

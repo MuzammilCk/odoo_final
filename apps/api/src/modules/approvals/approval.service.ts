@@ -273,6 +273,7 @@ export async function decideStep(
           where: { id: step.approvalRequest.quotationId },
           data: {
             status: QuotationStatus.APPROVED,
+            customerVisibleAt: new Date(),
           },
         });
       }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../lib/api';
@@ -177,9 +177,7 @@ export default function DealHealthDashboardPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {flags.map((flag) => {
-            const isStalled = flag.type === 'STALLED';
             const isAnomaly = flag.type === 'DISCOUNT_ANOMALY';
-            const isSlippage = flag.type === 'DELIVERY_SLIPPAGE';
 
             return (
               <div

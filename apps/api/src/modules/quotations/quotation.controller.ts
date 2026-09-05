@@ -59,7 +59,7 @@ const updateLineSchema = z
 
 quotationRouter.post(
   '/',
-  requireRole('SALES_REP', 'ADMIN'),
+  requireRole('SALES_REP'),
   async (req: Request, res: Response): Promise<void> => {
     const parsed = createQuotationSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -191,7 +191,7 @@ quotationRouter.get(
 
 quotationRouter.post(
   '/:id/lines',
-  requireRole('SALES_REP', 'ADMIN'),
+  requireRole('SALES_REP'),
   async (req: Request, res: Response): Promise<void> => {
     const parsed = addLineSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -213,7 +213,7 @@ quotationRouter.post(
 
 quotationRouter.patch(
   '/:id/lines/:lineId',
-  requireRole('SALES_REP', 'ADMIN'),
+  requireRole('SALES_REP'),
   async (req: Request, res: Response): Promise<void> => {
     const parsed = updateLineSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -240,7 +240,7 @@ quotationRouter.patch(
 
 quotationRouter.delete(
   '/:id/lines/:lineId',
-  requireRole('SALES_REP', 'ADMIN'),
+  requireRole('SALES_REP'),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const quotation = await QuotationService.deleteLine(
@@ -279,7 +279,7 @@ quotationRouter.get(
 
 quotationRouter.post(
   '/:id/submit',
-  requireRole('SALES_REP', 'ADMIN'),
+  requireRole('SALES_REP'),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const quotationId = req.params.id as string;

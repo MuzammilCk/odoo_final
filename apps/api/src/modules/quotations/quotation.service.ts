@@ -1,9 +1,15 @@
-import { QuotationStatus, AuditAction } from '@prisma/client';
+import { QuotationStatus, AuditAction, UserRole } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '../../lib/prisma.js';
 import { recalculateQuotation } from './services/quotation-calculator.service.js';
+import { resolvePrice } from '../products/services/price-list.service.js';
 
 export async function createQuotation(salesRepId: string, customerId: string, currencyCode: string) {
+  const rep = await prisma.user.findUnique({ where: { id: salesRepId } });
+  if (!rep || rep.role !== UserRole.SALES_REP) {
+    throw new Error('Only sales representatives can create quotations');
+  }
+
   const customer = await prisma.customer.findUnique({ where: { id: customerId } });
   if (!customer || !customer.isActive) {
     throw new Error('Customer not found or inactive');
@@ -52,7 +58,10 @@ interface AddLineInput {
 
 export async function addLine(quotationId: string, input: AddLineInput) {
   // 1. Verify quotation exists and is editable
-  const quotation = await prisma.quotation.findUnique({ where: { id: quotationId } });
+  const quotation = await prisma.quotation.findUnique({
+    where: { id: quotationId },
+    include: { customer: true },
+  });
   if (!quotation) throw new Error('Quotation not found');
   if (quotation.status !== QuotationStatus.DRAFT) {
     throw new Error('Quotation is not editable — status must be DRAFT');
@@ -62,8 +71,19 @@ export async function addLine(quotationId: string, input: AddLineInput) {
   const product = await prisma.product.findUnique({ where: { id: input.productId } });
   if (!product || !product.isActive) throw new Error('Product not found or inactive');
 
-  // 3. Resolve price — STUB: base_price + variant extraPrice (Contract 2 placeholder)
-  let unitPrice = new Decimal(product.basePrice);
+  // 3. Resolve price — Contract 2: PriceListService.resolvePrice
+  let unitPrice: Decimal;
+  if (quotation.customer?.discountTierId) {
+    const resolved = await resolvePrice(
+      input.productId,
+      quotation.customer.discountTierId,
+      quotation.currencyCode,
+    );
+    unitPrice = new Decimal(resolved.unitPrice);
+  } else {
+    unitPrice = new Decimal(product.basePrice);
+  }
+
   if (input.variantId) {
     const variant = await prisma.productVariant.findUnique({ where: { id: input.variantId } });
     if (!variant || !variant.isActive) throw new Error('Variant not found or inactive');
@@ -71,7 +91,7 @@ export async function addLine(quotationId: string, input: AddLineInput) {
     unitPrice = unitPrice.add(new Decimal(variant.extraPrice));
   }
 
-  // 4. Get tax_rate from product; estimated cost = 60% of unit price (stub until real cost data)
+  // 4. Get tax_rate from product; estimated cost = 60% of unit price
   const estimatedUnitCost = unitPrice.mul(new Decimal(0.6));
 
   // 5. Create quotation line — initial financial values; recalculate will overwrite them

@@ -101,7 +101,7 @@ You own the heart of DealFlow360 — the quotation lifecycle from creation throu
 
 ### A2.3 — BUILD: Create quotation endpoint
 - Create `apps/api/src/modules/quotations/quotation.controller.ts`
-- `POST /api/v1/internal/quotations` → Zod validation, auth (SALES_REP/ADMIN), call service, return quotation
+- `POST /api/v1/internal/quotations` → Zod validation, auth (SALES_REP only — ADMIN cannot create quotations), call service, return quotation
 - `GET /api/v1/internal/quotations` → list with optional filters (status, salesRepId)
 - `GET /api/v1/internal/quotations/:id` → detail with lines
 - **~50 lines.**

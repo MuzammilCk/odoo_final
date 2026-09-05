@@ -198,3 +198,117 @@ fulfillmentRouter.post(
     }
   }
 );
+
+/**
+ * 6. POST /api/v1/internal/fulfillment/allocations/:id/fulfill
+ * Dispatches and fulfills a single allocation.
+ */
+fulfillmentRouter.post(
+  '/allocations/:id/fulfill',
+  ...internalAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = req.params.id as string;
+      const allocation = await prisma.fulfillmentAllocation.findUnique({
+        where: { id },
+        include: { quotationLine: true },
+      });
+
+      if (!allocation) {
+        res.status(404).json({ error: 'Allocation not found' });
+        return;
+      }
+
+      const qty = Number(allocation.quantityAllocated);
+
+      const result = await prisma.$transaction(async (tx) => {
+        await tx.stockLevel.update({
+          where: {
+            warehouseId_productId: {
+              warehouseId: allocation.warehouseId,
+              productId: allocation.quotationLine.productId,
+            },
+          },
+          data: {
+            quantityOnHand: { decrement: qty },
+            quantityReserved: { decrement: qty },
+          },
+        });
+
+        return await tx.fulfillmentAllocation.update({
+          where: { id },
+          data: {
+            status: 'FULFILLED',
+          },
+        });
+      });
+
+      res.json({
+        message: 'Allocation fulfilled and inventory dispatched',
+        allocation: result,
+      });
+    } catch (error: any) {
+      console.error('[fulfillment/fulfill] Error fulfilling allocation:', error);
+      res.status(500).json({ error: error.message ?? 'Failed to fulfill allocation' });
+    }
+  }
+);
+
+/**
+ * 7. POST /api/v1/internal/fulfillment/quotations/:id/fulfill-all
+ * Dispatches and fulfills all pending allocations for a quotation.
+ */
+fulfillmentRouter.post(
+  '/quotations/:id/fulfill-all',
+  ...internalAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = req.params.id as string;
+      const allocations = await prisma.fulfillmentAllocation.findMany({
+        where: {
+          quotationId: id,
+          status: { not: 'FULFILLED' },
+        },
+        include: { quotationLine: true },
+      });
+
+      if (allocations.length === 0) {
+        res.status(400).json({ error: 'No unfulfilled allocations found for this quotation' });
+        return;
+      }
+
+      await prisma.$transaction(async (tx) => {
+        for (const allocation of allocations) {
+          const qty = Number(allocation.quantityAllocated);
+          await tx.stockLevel.update({
+            where: {
+              warehouseId_productId: {
+                warehouseId: allocation.warehouseId,
+                productId: allocation.quotationLine.productId,
+              },
+            },
+            data: {
+              quantityOnHand: { decrement: qty },
+              quantityReserved: { decrement: qty },
+            },
+          });
+
+          await tx.fulfillmentAllocation.update({
+            where: { id: allocation.id },
+            data: {
+              status: 'FULFILLED',
+            },
+          });
+        }
+      });
+
+      res.json({
+        message: `Successfully fulfilled ${allocations.length} allocation(s)`,
+        count: allocations.length,
+      });
+    } catch (error: any) {
+      console.error('[fulfillment/fulfill-all] Error fulfilling all allocations:', error);
+      res.status(500).json({ error: error.message ?? 'Failed to fulfill allocations' });
+    }
+  }
+);

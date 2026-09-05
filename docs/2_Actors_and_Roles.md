@@ -317,7 +317,7 @@ The customer portal is a genuine separate authorization boundary, not just an in
 |---|:---:|:---:|:---:|:---:|:---:|
 | Internal app login | ✓ | ✓ | ✓ | ✓ | ✗ |
 | Customer portal login | ✗ | ✗ | ✗ | ✗ | ✓ |
-| Create quotation | ✓* | ✓ | ✗ | ✗ | ✗ |
+| Create quotation | ✗ | ✓ | ✗ | ✗ | ✗ |
 | Edit quotation | ✓* | ✓** | ✗ | ✗ | ✗ |
 | Apply discount | ✓* | ✓ | ✗ | ✗ | ✗ |
 | View live margin | ✓* | ✓ | ✓ | ✓ | ✗ |

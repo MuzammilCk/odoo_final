@@ -11,6 +11,7 @@ import {
   ApprovalRequestStatus,
   AuditAction,
 } from '@prisma/client';
+import { createFromConfirmedQuotation } from '../subscriptions/subscription.service.js';
 
 export interface ConfirmationValidationResult {
   valid: boolean;
@@ -112,9 +113,9 @@ export async function confirmQuotation(
       })
     )?.id;
 
-  return await prisma.$transaction(async (tx) => {
+  const updatedQuotation = await prisma.$transaction(async (tx) => {
     // 1. Update quotation status to CONFIRMED
-    const updatedQuotation = await tx.quotation.update({
+    const updated = await tx.quotation.update({
       where: { id: quotationId },
       data: {
         status: QuotationStatus.CONFIRMED,
@@ -133,16 +134,25 @@ export async function confirmQuotation(
           quotationId,
           metadata: {
             action: 'QUOTATION_CONFIRMED',
-            version: updatedQuotation.currentVersion,
-            grandTotal: Number(updatedQuotation.grandTotal),
+            version: updated.currentVersion,
+            grandTotal: Number(updated.grandTotal),
           },
         },
       });
     }
 
-    // 3. Contract 3 touchpoint:
-    // TODO: SubscriptionService.createFromConfirmedQuotation(quotationId) — wire when Lane C is ready.
-
-    return updatedQuotation;
+    return updated;
   });
+
+  // 3. Contract 3 touchpoint:
+  // Convert any recurring lines into active SubscriptionInstances
+  if (effectiveUserId) {
+    try {
+      await createFromConfirmedQuotation(quotationId, effectiveUserId);
+    } catch (err) {
+      console.warn('[confirmQuotation] Contract 3 note:', err);
+    }
+  }
+
+  return updatedQuotation;
 }

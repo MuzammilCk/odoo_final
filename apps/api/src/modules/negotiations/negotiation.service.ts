@@ -28,20 +28,8 @@ export interface ResolveNegotiationInput {
   comment?: string;
 }
 
-/**
- * CONTRACT 1 Stub:
- * Lane A owns DiscountRiskService.evaluateAndRoute(quotationId).
- * FOR NOW, STUB IT per prompt instructions:
- * const riskResult = { requiresApproval: false, riskLevel: 'LOW' as const }
- * TODO: Replace stub with real import when Lane A is ready
- */
-export async function evaluateAndRouteStub(_quotationId: string): Promise<{
-  requiresApproval: boolean;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
-  riskScore: number;
-}> {
-  return { requiresApproval: false, riskLevel: 'LOW', riskScore: 0 };
-}
+import { evaluateAndRoute } from '../quotations/services/discount-risk.service.js';
+import { createApprovalRequest } from '../approvals/approval.service.js';
 
 /**
  * Maps incoming negotiation request type to Prisma schema enum.
@@ -247,17 +235,27 @@ export async function resolveNegotiation(
     await QuotationCalculatorService.recalculateQuotation(negotiation.quotationId);
 
     // d. CALL CONTRACT 1: DiscountRiskService.evaluateAndRoute(quotationId)
-    // FOR NOW, STUB IT: const riskResult = { requiresApproval: false, riskLevel: 'LOW' as const }
-    // TODO: Replace stub with real import when Lane A is ready
-    const riskResult = await evaluateAndRouteStub(negotiation.quotationId);
+    const riskResult = await evaluateAndRoute(negotiation.quotationId);
 
-    // e. If riskResult.requiresApproval → set quotation.status = PENDING_APPROVAL
-    //    If not → quotation stays at UNDER_NEGOTIATION (customer-visible)
+    // e. If riskResult.requiresApproval → create approval request and set quotation.status = PENDING_APPROVAL
+    //    If not → quotation returns to APPROVED (customer-visible, ready to confirm)
     if (riskResult.requiresApproval) {
+      await createApprovalRequest(
+        negotiation.quotationId,
+        riskResult.riskLevel as 'MEDIUM' | 'HIGH',
+        riskResult.riskScore,
+      );
       await prisma.quotation.update({
         where: { id: negotiation.quotationId },
         data: {
           status: QuotationStatus.PENDING_APPROVAL,
+        },
+      });
+    } else {
+      await prisma.quotation.update({
+        where: { id: negotiation.quotationId },
+        data: {
+          status: QuotationStatus.APPROVED,
         },
       });
     }

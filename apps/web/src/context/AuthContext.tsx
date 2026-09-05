@@ -36,8 +36,17 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('df360_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem('df360_token') || null;
+  });
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await fetch('/api/v1/auth/login', {
@@ -54,11 +63,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const body = await res.json() as { user: AuthUser; token: string };
     setUser(body.user);
     setToken(body.token);
+    try {
+      localStorage.setItem('df360_user', JSON.stringify(body.user));
+      localStorage.setItem('df360_token', body.token);
+    } catch (e) {
+      console.warn('Failed to save to localStorage', e);
+    }
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
+    try {
+      localStorage.removeItem('df360_user');
+      localStorage.removeItem('df360_token');
+    } catch (e) {
+      console.warn('Failed to clear localStorage', e);
+    }
   }, []);
 
   return (

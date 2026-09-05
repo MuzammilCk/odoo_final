@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../lib/api';
@@ -108,7 +108,7 @@ export default function BillingDetailPage() {
     );
   }
 
-  const { quotation, oneTimeCharges, recurringCharges, subscriptions, invoices } = summary;
+  const { quotation, oneTimeCharges, subscriptions, invoices } = summary;
 
   const totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
   const totalPaid = invoices.reduce(

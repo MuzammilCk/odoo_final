@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NegotiationPanel from './components/NegotiationPanel';
 import ConfirmButton from './components/ConfirmButton';
+import { ArrowLeft, FileText, Loader2, AlertCircle, Calendar } from 'lucide-react';
 
 interface QuotationLineItem {
   id: string;
@@ -58,30 +59,53 @@ export default function PortalQuotationDetailPage() {
     fetchQuotation();
   }, [id]);
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+        return {
+          bg: 'bg-brand-500/10 text-brand-300 border-brand-500/25',
+          dot: 'bg-brand-400',
+        };
+      case 'UNDER_NEGOTIATION':
+        return {
+          bg: 'bg-amber-500/10 text-amber-300 border-amber-500/25',
+          dot: 'bg-amber-400',
+        };
+      case 'CONFIRMED':
+        return {
+          bg: 'bg-deal-500/10 text-deal-300 border-deal-500/25',
+          dot: 'bg-deal-400',
+        };
+      default:
+        return {
+          bg: 'bg-slate-800 text-slate-400 border-slate-700',
+          dot: 'bg-slate-500',
+        };
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
+        <Loader2 size={32} className="text-brand-500 animate-spin" />
       </div>
     );
   }
 
   if (error || !quotation) {
     return (
-      <div className="bg-red-950/40 border border-red-800 p-6 rounded-xl text-center space-y-4">
-        <p className="text-red-300">{error ?? 'Quotation not found'}</p>
-        <Link to="/portal/quotations" className="text-brand-400 hover:underline text-sm inline-block">
-          &larr; Back to My Quotations
+      <div className="bg-rose-950/40 border border-rose-800/80 p-6 rounded-2xl text-center space-y-4">
+        <AlertCircle size={24} className="text-rose-400 mx-auto" />
+        <p className="text-rose-300 text-sm">{error ?? 'Quotation not found'}</p>
+        <Link to="/portal/quotations" className="text-brand-400 hover:underline text-xs inline-flex items-center gap-1">
+          <ArrowLeft size={13} />
+          <span>Back to My Quotations</span>
         </Link>
       </div>
     );
   }
 
-  const statusColors: Record<string, string> = {
-    APPROVED: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-    UNDER_NEGOTIATION: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    CONFIRMED: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  };
+  const badge = getStatusBadge(quotation.status);
 
   return (
     <div className="space-y-8">
@@ -90,22 +114,21 @@ export default function PortalQuotationDetailPage() {
         <div>
           <Link
             to="/portal/quotations"
-            className="text-xs text-gray-400 hover:text-gray-200 transition flex items-center gap-1 mb-2"
+            className="text-xs text-slate-400 hover:text-slate-200 transition inline-flex items-center gap-1.5 mb-2 font-medium"
           >
-            &larr; Back to My Quotations
+            <ArrowLeft size={13} />
+            <span>Back to My Quotations</span>
           </Link>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white tracking-tight">{quotation.quote_number}</h1>
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                statusColors[quotation.status] ?? 'bg-gray-800 text-gray-400'
-              }`}
-            >
-              {quotation.status.replace(/_/g, ' ')}
+            <h1 className="text-2xl font-bold text-white tracking-tight font-mono">{quotation.quote_number}</h1>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${badge.bg}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+              <span>{quotation.status.replace(/_/g, ' ')}</span>
             </span>
           </div>
-          <p className="text-xs text-gray-400 mt-1">
-            Issued on {new Date(quotation.created_at).toLocaleDateString()}
+          <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 font-mono">
+            <Calendar size={12} />
+            <span>Issued on {new Date(quotation.created_at).toLocaleDateString()}</span>
           </p>
         </div>
 
@@ -122,51 +145,54 @@ export default function PortalQuotationDetailPage() {
       </div>
 
       {/* Commercial Line Items (Customer-Safe: NO internal margin, cost, or risk) */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl">
-        <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">Commercial Line Items</h2>
-          <span className="text-xs text-gray-400">{quotation.lines.length} items</span>
+      <div className="bg-surface-card border border-surface-border rounded-2xl overflow-hidden shadow-card">
+        <div className="px-6 py-4 border-b border-surface-border flex items-center justify-between bg-surface-card/60">
+          <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <FileText size={16} className="text-brand-400" />
+            <span>Commercial Line Items</span>
+          </h2>
+          <span className="text-xs text-slate-400 font-mono">{quotation.lines.length} items</span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-950/60 text-xs text-gray-400 uppercase tracking-wider border-b border-gray-800">
+            <thead className="bg-surface-base/80 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-surface-border">
               <tr>
-                <th className="px-6 py-3">Product / Service</th>
-                <th className="px-6 py-3">Type</th>
-                <th className="px-6 py-3 text-right">Quantity</th>
-                <th className="px-6 py-3 text-right">Unit Price</th>
-                <th className="px-6 py-3 text-right">Discount</th>
-                <th className="px-6 py-3 text-right">Line Total</th>
+                <th className="px-5 py-3.5">Product / Service</th>
+                <th className="px-5 py-3.5">Type</th>
+                <th className="px-5 py-3.5 text-right">Quantity</th>
+                <th className="px-5 py-3.5 text-right">Unit Price</th>
+                <th className="px-5 py-3.5 text-right">Discount</th>
+                <th className="px-5 py-3.5 text-right">Line Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800/60 text-gray-300">
+            <tbody className="divide-y divide-surface-border text-slate-300 text-xs">
               {quotation.lines.map((line) => (
-                <tr key={line.id} className="hover:bg-gray-800/30 transition">
-                  <td className="px-6 py-4 font-medium text-white">{line.product_name}</td>
-                  <td className="px-6 py-4">
+                <tr key={line.id} className="hover:bg-surface-elevated/40 transition">
+                  <td className="px-5 py-4 font-semibold text-white">{line.product_name}</td>
+                  <td className="px-5 py-4">
                     <span
-                      className={`text-[11px] font-semibold px-2 py-0.5 rounded ${
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                         line.line_type === 'RECURRING'
-                          ? 'bg-purple-900/40 text-purple-300 border border-purple-800/50'
-                          : 'bg-gray-800 text-gray-400'
+                          ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
+                          : 'bg-surface-elevated text-slate-400 border border-surface-border'
                       }`}
                     >
                       {line.line_type === 'RECURRING' ? 'Subscription' : 'One-time'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">{line.quantity}</td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-5 py-4 text-right font-mono tabular-numbers">{line.quantity}</td>
+                  <td className="px-5 py-4 text-right font-mono tabular-numbers">
                     ${line.unit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-5 py-4 text-right font-mono tabular-numbers">
                     {line.discount_percent > 0 ? (
-                      <span className="text-amber-400 font-medium">{line.discount_percent}%</span>
+                      <span className="text-amber-400 font-medium">-{line.discount_percent}%</span>
                     ) : (
-                      <span className="text-gray-500">—</span>
+                      <span className="text-slate-500">—</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right font-semibold text-white">
+                  <td className="px-5 py-4 text-right font-bold text-white font-mono tabular-numbers">
                     ${line.line_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
@@ -176,31 +202,31 @@ export default function PortalQuotationDetailPage() {
         </div>
 
         {/* Financial Summary */}
-        <div className="bg-gray-950/70 p-6 border-t border-gray-800 flex flex-col sm:flex-row justify-end">
-          <div className="w-full sm:w-72 space-y-2 text-sm">
-            <div className="flex justify-between text-gray-400">
-              <span>Subtotal:</span>
-              <span className="text-gray-200">
+        <div className="bg-surface-base/60 p-6 border-t border-surface-border flex flex-col sm:flex-row justify-end">
+          <div className="w-full sm:w-80 space-y-2 text-xs font-mono">
+            <div className="flex justify-between text-slate-400">
+              <span>Catalog Subtotal:</span>
+              <span className="text-slate-200 tabular-numbers">
                 ${quotation.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
             </div>
             {quotation.discount_total > 0 && (
-              <div className="flex justify-between text-gray-400">
+              <div className="flex justify-between text-slate-400">
                 <span>Discount Total:</span>
-                <span className="text-amber-400">
+                <span className="text-rose-400 tabular-numbers">
                   -${quotation.discount_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               </div>
             )}
-            <div className="flex justify-between text-gray-400">
+            <div className="flex justify-between text-slate-400">
               <span>Estimated Tax:</span>
-              <span className="text-gray-200">
+              <span className="text-slate-200 tabular-numbers">
                 ${quotation.tax_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="flex justify-between text-base font-bold text-white border-t border-gray-800 pt-2">
+            <div className="flex justify-between text-sm font-bold text-white border-t border-surface-border pt-3">
               <span>Grand Total:</span>
-              <span className="text-emerald-400">
+              <span className="text-deal-400 font-sans tabular-numbers">
                 {quotation.currency_code} ${quotation.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
             </div>

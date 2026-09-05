@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../lib/api';
@@ -74,7 +74,16 @@ export default function SubscriptionDetailPage() {
 
   // Proration preview calculation
   function calculateProration() {
-    if (!sub) return { remainingFraction: 0, creditRefund: 0, adjustment: 0 };
+    if (!sub) {
+      return {
+        usedFraction: 0,
+        remainingFraction: 0,
+        daysUsed: 0,
+        daysInPeriod: 1,
+        adjustment: 0,
+        refundOnCancel: 0,
+      };
+    }
     const today = new Date();
     const periodStart = new Date(sub.currentPeriodStart);
     const periodEnd = new Date(sub.currentPeriodEnd);
@@ -102,7 +111,7 @@ export default function SubscriptionDetailPage() {
     };
   }
 
-  async function handleModifySubscription(e: React.FormEvent) {
+  async function handleModifySubscription(e: FormEvent) {
     e.preventDefault();
     if (!id) return;
     setModifying(true);

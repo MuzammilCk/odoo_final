@@ -278,11 +278,11 @@
 
 | # | Task | Status | Owner pair |
 |---|---|---|---|
-| I1 | Wire Contract 1 — Lane B calls Lane A's `evaluateAndRoute()` | [ ] | A + B |
-| I2 | Wire Contract 2 — Lane A calls Lane C's `resolvePrice()` | [ ] | A + C |
-| I3 | Wire Contract 3 — Lane B's confirm calls Lane C's `createFromConfirmedQuotation()` | [ ] | B + C |
-| I4 | Full flow: Login → Quote → Discount → Approval → Portal → Negotiate → Re-approve → Confirm → Fulfill → Invoice → Pay | [ ] | All |
-| I5 | Cross-lane auth test | [ ] | All |
+| I1 | Wire Contract 1 — Lane B calls Lane A's `evaluateAndRoute()` | [x] ✅ | A + B |
+| I2 | Wire Contract 2 — Lane A calls Lane C's `resolvePrice()` | [x] ✅ | A + C |
+| I3 | Wire Contract 3 — Lane B's confirm calls Lane C's `createFromConfirmedQuotation()` | [x] ✅ | B + C |
+| I4 | Full flow: Login → Quote → Discount → Approval → Portal → Negotiate → Re-approve → Confirm → Fulfill → Invoice → Pay | [x] ✅ | All |
+| I5 | Cross-lane auth test | [x] ✅ | All |
 
 ---
 
@@ -290,26 +290,26 @@
 
 | # | Task | Status | Owner |
 |---|---|---|---|
-| P1 | Error states + toast notifications | [ ] | All |
-| P2 | Loading states + skeleton screens | [ ] | All |
-| P3 | Seed data hardening for demo | [ ] | All |
+| P1 | Error states + toast notifications | [x] ✅ | All |
+| P2 | Loading states + skeleton screens | [x] ✅ | All |
+| P3 | Seed data hardening for demo | [x] ✅ | All |
 | P4 | Demo script — exact 5-minute walkthrough | [ ] | All |
-| P5 | Architecture diagram (deliverable) | [ ] | First done |
+| P5 | Architecture diagram (deliverable) | [x] ✅ | First done |
 | P6 | "What we'd build next" write-up | [ ] | All |
-| P7 | Final smoke test on clean DB | [ ] | All |
+| P7 | Final smoke test on clean DB | [x] ✅ | All |
 
 ---
 
 ## Quick Test Flow Verification (§9)
 
-- [ ] 1. Sign up / log in, configure discount tier + warehouse + subscription
-- [ ] 2. Create quotation, add product with discount above ceiling
-- [ ] 3. Confirm → auto-routes for approval
-- [ ] 4. Accept upsell → total + margin update immediately
-- [ ] 5. Approve → stock pulled from correct warehouse, splits if needed
-- [ ] 6. One-time + recurring billed correctly and separately
-- [ ] 7. Customer portal → request bigger discount → re-enters approval
-- [ ] 8. Confirm order, record payment, invoice status updates
+- [x] 1. Sign up / log in, configure discount tier + warehouse + subscription
+- [x] 2. Create quotation, add product with discount above ceiling
+- [x] 3. Confirm → auto-routes for approval
+- [x] 4. Accept upsell → total + margin update immediately
+- [x] 5. Approve → stock pulled from correct warehouse, splits if needed
+- [x] 6. One-time + recurring billed correctly and separately
+- [x] 7. Customer portal → request bigger discount → re-enters approval
+- [x] 8. Confirm order, record payment, invoice status updates
 
 ---
 
@@ -318,10 +318,10 @@
 | Lane | Micro-steps | Completed | Remaining | Estimated time remaining |
 |---|---|---|---|---|
 | **Foundation (Phase 0)** | 10 | 10 | 0 | **0 hrs (COMPLETE ✅)** |
-| **Lane A** | 44 | 8 (A1.1–A1.8) | 36 | ~12 hrs |
-| **Lane B** | 35 | 1 (B1.4 shell) | 34 | ~11 hrs |
-| **Lane C** | 46 | 46 (C1.1–C8.6) | 0 | **0 hrs (COMPLETE ✅)** |
-| **Integration** | 5 | 0 | 5 | ~1.5 hrs |
-| **Polish** | 7 | 0 | 7 | ~1.5 hrs |
+| **Lane A** | 44 | 44 | 0 | **0 hrs (COMPLETE ✅)** |
+| **Lane B** | 35 | 35 | 0 | **0 hrs (COMPLETE ✅)** |
+| **Lane C** | 46 | 46 | 0 | **0 hrs (COMPLETE ✅)** |
+| **Integration** | 5 | 5 | 0 | **0 hrs (COMPLETE ✅)** |
+| **Polish & Verification** | 7 | 5 | 2 | ~0.5 hrs |
 
 > **Note:** Lane A and Lane C have more micro-steps than available solo hours. Prioritize: core flows first (A1–A4, C1–C5 are critical), nice-to-haves last (A5 recommendations, C8 reporting). If running short, recommendations and export can be simplified.
