@@ -4,6 +4,12 @@
 > **Use cases:** UC-12–UC-16
 > **Screens:** 7 (Fulfillment List), 8 (Fulfillment Detail), 11 (Customer Portal)
 > **Micro-steps:** 35 total — each one produces ~30–80 lines of code you can explain
+> **Foundation status:** ✅ Phase 0 Foundation is COMPLETE & PUSHED (`1471dc0`). Pull `main` before starting!
+> **Ready fixtures in DB:**
+> - `customer@acme.com` / `demo123` (Acme Corp, customerId linked in JWT)
+> - Quotation `quote-3-negotiating` (UNDER_NEGOTIATION) for testing negotiation flow
+> - Quotation `quote-4-confirmed` (CONFIRMED) for testing confirmation & allocations
+> - Widget Pro split across North Warehouse (10 units) and South Warehouse (5 units), 5 units backorder
 
 ---
 
@@ -18,7 +24,7 @@ You own the two hardest systems in DealFlow360: the customer-facing portal with 
 - **Quotation creation / discount governance / approval** → Lane A owns. After negotiation changes terms, you call Lane A's `DiscountRiskService.evaluateAndRoute()` (Contract 1). Until Lane A builds it, stub it to return `{ requiresApproval: false, riskLevel: 'LOW' }`.
 - **Subscription creation from confirmed quotation** → Lane C owns the implementation. Your confirmation handler calls `SubscriptionService.createFromConfirmedQuotation()` (Contract 3). Until Lane C builds it, leave a `// TODO` comment.
 - **Products / Billing / Invoices** → Lane C owns. You don't touch these.
-- **Auth** → Lane A built the auth system. You reuse the same JWT middleware and RBAC guards.
+- **Auth** → Built in Foundation. You reuse JWT middleware (`authenticateToken` in [auth.middleware.ts](file:///d:/projects/dreamflow/apps/api/src/modules/auth/auth.middleware.ts)) and RBAC guards (`requireRole` in [rbac.middleware.ts](file:///d:/projects/dreamflow/apps/api/src/modules/auth/rbac.middleware.ts)). Frontend portal shell layout already created in [PortalLayout.tsx](file:///d:/projects/dreamflow/apps/web/src/layouts/PortalLayout.tsx).
 
 ---
 

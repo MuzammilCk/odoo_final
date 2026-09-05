@@ -177,4 +177,7 @@ The Excalidraw file has a handful of stray text elements sitting outside any fra
 | F2 — Prisma schema | ✅ Done | 25 tables, migration `20260905133716_init` applied |
 | F3 — Seed data | ✅ Done | 6 users, 5 quotations, backorder, subscription |
 | F4 — Auth + RBAC + Layouts | ✅ Done | JWT login ✓, /me ✓, AppLayout + PortalLayout ✓ |
+| F4 — `.env.example` | ✅ Done | Config template with DB, JWT, port, base URLs |
+| Verification | ✅ Done | Express daemon (3001) ✓, Vite web ✓, Seed ✓, Login ✓ |
+| Git Push | ✅ Done | Pushed to `main` (`1471dc0`) — ready for team pull |
 

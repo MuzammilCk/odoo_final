@@ -22,9 +22,15 @@ You own the heart of DealFlow360 — the quotation lifecycle from creation throu
 
 ---
 
-## Step A1 — Authentication
+## Step A1 — Authentication (✅ COMPLETED in Foundation Phase F4)
 
-### A1.1 — LEARN: Auth architecture
+> **Status:** Fully implemented, verified, and pushed to `main` (commit `1471dc0`).
+> - **Backend:** [auth.service.ts](file:///d:/projects/dreamflow/apps/api/src/modules/auth/auth.service.ts), [auth.controller.ts](file:///d:/projects/dreamflow/apps/api/src/modules/auth/auth.controller.ts), [auth.middleware.ts](file:///d:/projects/dreamflow/apps/api/src/modules/auth/auth.middleware.ts), [rbac.middleware.ts](file:///d:/projects/dreamflow/apps/api/src/modules/auth/rbac.middleware.ts)
+> - **Frontend:** [AuthContext.tsx](file:///d:/projects/dreamflow/apps/web/src/context/AuthContext.tsx), [LoginPage.tsx](file:///d:/projects/dreamflow/apps/web/src/features/auth/LoginPage.tsx), [ProtectedRoute.tsx](file:///d:/projects/dreamflow/apps/web/src/features/auth/ProtectedRoute.tsx)
+> - **Endpoints:** `POST /api/v1/auth/signup`, `POST /api/v1/auth/login`, `GET /api/v1/auth/me`
+> **Lane A owner:** You can proceed directly to **Step A2 — Quotation CRUD**!
+
+### A1.1 — LEARN: Auth architecture [✅ COMPLETED in F4]
 - **Read:** §8.17–8.20 (authentication + password security + tokens + authorization)
 - **Understand:** Why JWT? Why bcrypt/argon2? What goes in the token payload?
 - **Explain check:** *"Why do we hash passwords instead of encrypting them? What's the difference?"*

@@ -4,6 +4,16 @@
 > **Use cases:** UC-02, UC-04, UC-17–UC-22
 > **Screens:** 9 (Subscriptions), 10 (Billing Detail), 12 (Invoices List), 13 (Invoice Detail), 14 (Deal Health), 15 (Admin Reporting), 16 (Product Dashboard), 17 (Product Details)
 > **Micro-steps:** 46 total — each one produces ~30–80 lines of code you can explain
+> **Foundation status:** ✅ Phase 0 Foundation is COMPLETE & PUSHED (`1471dc0`). Pull `main` before starting!
+> **Ready fixtures in DB:**
+> - 3 categories (`Hardware`, `Software`, `Services`)
+> - 6 products seeded (including `Enterprise Cloud Suite` and `24/7 Support Plan` with `is_subscription_capable = true`)
+> - 3 discount tiers (`Standard`, `Gold`, `Enterprise`)
+> - Confirmed quotation `quote-4-confirmed` with both hardware and recurring lines (ready for hybrid billing!)
+> - Fulfilled allocation already present for one-time invoice generation
+> - `quote-5-stalled` updated > 3 days ago for testing `STALLED` flag
+> - Sales rep `rep2@demo.com` for testing `DISCOUNT_ANOMALY`
+> - Active subscription instance seeded
 
 ---
 
@@ -15,7 +25,7 @@ You own the product catalog (the source of truth everyone else reads from), the 
 
 ## What you DON'T own (and how you interact)
 
-- **Quotations / Approvals / Auth** → Lane A owns. You provide `PriceListService.resolvePrice()` (Contract 2) that Lane A calls when building quotation lines.
+- **Quotations / Approvals / Auth** → Lane A owns. Auth was built in Foundation. You provide `PriceListService.resolvePrice()` (Contract 2) that Lane A calls when building quotation lines.
 - **Customer Portal / Negotiation / Fulfillment** → Lane B owns. Lane B calls your `SubscriptionService.createFromConfirmedQuotation()` (Contract 3) when a quotation is confirmed.
 - **Fulfillment allocations** → Lane B writes them. You read `fulfillment_allocations.status` directly (Contract 4) to know what's shipped before invoicing.
 - **Quotations table** → Lane A writes it. You read `quotations` directly for Deal Health and reporting.

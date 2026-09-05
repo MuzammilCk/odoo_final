@@ -1,8 +1,8 @@
 # DealFlow360 — Implementation Tracker
 
 > **Living document.** Mark items `[x]` when done, `[/]` when in progress. Each row is ~15–30 minutes of work.
-> **Foundation owner:** You (solo) — teammates pull and bootstrap after F4 is pushed.
-> **Started:** 2026-09-05 ~18:48 IST
+> **Foundation owner:** Solo Foundation — **PHASE 0 COMPLETE & PUSHED** (commit `1471dc0` on `main`).
+> **Started:** 2026-09-05 ~18:48 IST | **Foundation finished:** 2026-09-05 ~19:25 IST
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Phase | Hours | What happens |
 |---|---|---|
-| **Foundation** | T+0 → T+2 | Monorepo, Prisma schema, seed, auth shell — **1 person builds, others pull** |
+| **Foundation** | T+0 → T+2 | Monorepo, Prisma schema, seed, auth shell — **COMPLETE ✅ (pushed to main)** |
 | **Parallel Build** | T+2 → T+12 | Each lane builds independently via micro-steps |
 | **Checkpoint 1** | T+6 | Quick sync: each lane's core happy path works solo? |
 | **Integration** | T+12 → T+14 | Wire contracts 1–3, run full flow |
@@ -29,25 +29,25 @@
 - [x] **F4** — RBAC middleware — `requireRole()` factory, portal isolation (/app/* vs /portal/*) ✅
 - [x] **F4** — Shared types — enums + JwtPayload in shared package ✅
 - [x] **F4** — Frontend shell — AuthContext, ProtectedRoute, AppLayout, PortalLayout, LoginPage, all route slots ✅
-- [ ] **F4** — `.env.example`
-- [ ] Verify: both apps run, seed loads, login works, RBAC blocks
-- [ ] **GIT PUSH** — push to main → teammates pull + `npm install` + `npx prisma migrate dev` + `npx prisma db seed`
+- [x] **F4** — `.env.example` — environment template with DB, JWT, port, base URLs ✅
+- [x] Verify: both apps run, seed loads, login works, RBAC blocks ✅
+- [x] **GIT PUSH** — pushed to `main` (`1471dc0`) → teammates pull + `npm install` + `npx prisma migrate dev` + `npx prisma db seed` ✅
 
 ---
 
 ## Phase 1 — Lane A: Commercial Core
 
-### Step A1 — Auth
+### Step A1 — Auth (Completed in Foundation Phase F4)
 | # | Type | Task | Status |
 |---|---|---|---|
-| A1.1 | LEARN | Read §8.17–8.20 — auth architecture | [ ] |
-| A1.2 | BUILD | Password hashing + user creation service | [ ] |
-| A1.3 | BUILD | Login service (find user, compare hash, generate JWT) | [ ] |
-| A1.4 | BUILD | Auth endpoints (signup, login, me) | [ ] |
-| A1.5 | BUILD | JWT middleware (extract + verify token) | [ ] |
-| A1.6 | BUILD | RBAC middleware (requireRole) | [ ] |
-| A1.7 | BUILD | Login page UI (Screen 1) | [ ] |
-| A1.8 | BUILD | Route guards (ProtectedRoute component) | [ ] |
+| A1.1 | LEARN | Read §8.17–8.20 — auth architecture | [x] |
+| A1.2 | BUILD | Password hashing + user creation service (`auth.service.ts`) | [x] |
+| A1.3 | BUILD | Login service (find user, compare hash, generate JWT) | [x] |
+| A1.4 | BUILD | Auth endpoints (signup, login, me in `auth.controller.ts`) | [x] |
+| A1.5 | BUILD | JWT middleware (extract + verify token in `auth.middleware.ts`) | [x] |
+| A1.6 | BUILD | RBAC middleware (requireRole in `rbac.middleware.ts`) | [x] |
+| A1.7 | BUILD | Login page UI (Screen 1 in `LoginPage.tsx`) | [x] |
+| A1.8 | BUILD | Route guards (`ProtectedRoute.tsx` component + route tree) | [x] |
 
 ### Step A2 — Quotation CRUD
 | # | Type | Task | Status |
@@ -123,7 +123,7 @@
 | B1.1 | LEARN | Read §8.21 — portal isolation rules | [ ] |
 | B1.2 | BUILD | Portal middleware (role check + ownership check) | [ ] |
 | B1.3 | BUILD | Portal routes + controller shell | [ ] |
-| B1.4 | BUILD | Portal frontend shell (separate layout/branding) | [ ] |
+| B1.4 | BUILD | Portal frontend shell (scaffolded in F4 — `PortalLayout.tsx`) | [x] |
 
 ### Step B2 — Portal Quotation View
 | # | Type | Task | Status |
@@ -315,13 +315,13 @@
 
 ## Totals
 
-| Lane | Micro-steps | Estimated time (@ ~20 min/step) |
-|---|---|---|
-| Foundation | 10 | ~2 hrs (all together) |
-| Lane A | 44 | ~14.5 hrs |
-| Lane B | 35 | ~11.5 hrs |
-| Lane C | 46 | ~15 hrs |
-| Integration | 5 | ~1.5 hrs |
-| Polish | 7 | ~1.5 hrs |
+| Lane | Micro-steps | Completed | Remaining | Estimated time remaining |
+|---|---|---|---|---|
+| **Foundation (Phase 0)** | 10 | 10 | 0 | **0 hrs (COMPLETE ✅)** |
+| **Lane A** | 44 | 8 (A1.1–A1.8) | 36 | ~12 hrs |
+| **Lane B** | 35 | 1 (B1.4 shell) | 34 | ~11 hrs |
+| **Lane C** | 46 | 0 | 46 | ~15 hrs |
+| **Integration** | 5 | 0 | 5 | ~1.5 hrs |
+| **Polish** | 7 | 0 | 7 | ~1.5 hrs |
 
 > **Note:** Lane A and Lane C have more micro-steps than available solo hours. Prioritize: core flows first (A1–A4, C1–C5 are critical), nice-to-haves last (A5 recommendations, C8 reporting). If running short, recommendations and export can be simplified.

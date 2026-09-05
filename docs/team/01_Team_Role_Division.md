@@ -1,5 +1,9 @@
 # DealFlow360 — Team Role Division
 
+> **CURRENT STATUS (2026-09-05): ✅ PHASE 0 FOUNDATION COMPLETE & PUSHED TO MAIN**
+> Commit `1471dc0` on branch `main` contains the complete monorepo, 25-table Prisma schema, migration, seed fixtures, auth/RBAC shell, and frontend layouts.
+> **Teammates:** Pull `main` (`git pull origin main`), follow the 7-step bootstrap in [00_How_To_Use_Control_Files.md](file:///d:/projects/dreamflow/docs/team/00_How_To_Use_Control_Files.md), create your feature branch, and build!
+
 ## The split, and why
 
 Three people, one business flow that reads sequentially on paper (quote → approve → negotiate → confirm → fulfill → bill). Splitting by "who does frontend / who does backend" leaves two people blocked most of the day waiting on the third. Splitting by **business domain** — where each person owns a vertical slice from database to UI — is what actually lets three people work at once, because Sections 5–7 already hand you the exact schema and API contract for your slice. You're not designing together under time pressure; you're each implementing independently from a blueprint that's already been agreed on.
@@ -97,17 +101,18 @@ Contracts 1–3 are the ones to actually agree on out loud before splitting up. 
 
 ---
 
-## Seed fixtures every lane needs (build in Foundation, not later)
+## Seed fixtures every lane needs (Loaded & Verified in `prisma/seed.ts` ✅)
 
 This is what makes real parallel work possible — nobody should ever be blocked waiting for another lane's flow to reach a particular state, because the fixture already puts them there:
 
-- One quotation in `DRAFT`, one in `PENDING_APPROVAL`, one in `UNDER_NEGOTIATION`, and **one already `CONFIRMED`** with real lines — Lane A and Lane B need these to test transitions without re-running the whole flow from scratch every time.
-- The confirmed quotation should include **both** a hardware line and a subscription-capable line, so Lane C can build hybrid billing against it on day one.
-- At least one `FulfillmentAllocation` already `FULFILLED` — so Lane C can build one-time invoicing without waiting on Lane B's allocation engine.
-- One quotation with `updated_at` set far in the past (triggers `STALLED`), and one sales rep whose discount pattern triggers `DISCOUNT_ANOMALY` — Lane C needs these to build Deal Health without waiting for real usage data to accumulate over the day.
-- Stock split across both seeded warehouses for at least one product, with total quantity too low to fully cover the confirmed quotation — gives Lane B a guaranteed split-fulfillment-plus-backorder scenario immediately.
+- [x] **Quotation states:** One quotation in `DRAFT` (`quote-1-draft`), one in `PENDING_APPROVAL` (`quote-2-pending`), one in `UNDER_NEGOTIATION` (`quote-3-negotiating`), and **one already `CONFIRMED`** (`quote-4-confirmed`) with real lines — Lane A and Lane B can test transitions immediately.
+- [x] **Hybrid billing fixture:** The confirmed quotation includes **both** a hardware line (Widget Pro) and a subscription-capable recurring line (Enterprise Cloud Suite), so Lane C can build hybrid billing against it on day one.
+- [x] **Fulfilled allocation:** At least one `FulfillmentAllocation` already `FULFILLED` — so Lane C can build one-time invoicing without waiting on Lane B's allocation engine.
+- [x] **Deal Health fixtures:** One quotation with `updated_at` set 4 days in the past (`quote-5-stalled` triggering `STALLED`), and one sales rep (`rep2@demo.com`) whose historical quotes have high discount overage triggering `DISCOUNT_ANOMALY` — Lane C can test Deal Health immediately.
+- [x] **Warehouse split & backorder:** Widget Pro stock split across North Warehouse (10 units) and South Warehouse (5 units), with total quantity (15) lower than the confirmed order (20) — gives Lane B a guaranteed split-fulfillment-plus-backorder (5 units) scenario immediately.
+- [x] **Active subscription instance:** Seeded with 30-day active period for Lane C's subscription lifecycle and recurring invoice tests.
 
-This matches what Section 5.45 already asks for — Foundation just needs to make sure it's actually loaded before the three of you split up.
+All fixtures loaded and verified via `npx prisma db seed`.
 
 ---
 
