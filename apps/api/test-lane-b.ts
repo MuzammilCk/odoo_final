@@ -11,6 +11,8 @@ import { prisma } from './src/lib/prisma.js';
 import { createNegotiationRequest, resolveNegotiation } from './src/modules/negotiations/negotiation.service.js';
 import { validateConfirmation, confirmQuotation } from './src/modules/portal/portal.service.js';
 import { reserveStock, getAvailableStock } from './src/modules/inventory/inventory.service.js';
+import { createQuotation, addLine } from './src/modules/quotations/quotation.service.js';
+import { purgeAllQuotationsAndTransactions } from './src/scripts/clean-all-quotations.js';
 import { QuotationStatus, UserRole } from '@prisma/client';
 
 async function runTests() {
@@ -37,12 +39,26 @@ async function runTests() {
 
   // Test 2: Negotiation Request Flow
   console.log('\n2. Testing Negotiation Submission and Resolution...');
-  const quoteToNegotiate = await prisma.quotation.findFirst({
+  let quoteToNegotiate = await prisma.quotation.findFirst({
     where: {
       status: { in: [QuotationStatus.APPROVED, QuotationStatus.UNDER_NEGOTIATION] },
     },
     include: { lines: true, customer: { include: { users: true } } },
   });
+
+  if (!quoteToNegotiate) {
+    const product = await prisma.product.findFirst({ where: { isActive: true } });
+    const fresh = await createQuotation(repUser.id, customerUser.customerId!, 'USD');
+    await addLine(fresh.id, { productId: product!.id, quantity: 2, discountPercent: 5 });
+    await prisma.quotation.update({
+      where: { id: fresh.id },
+      data: { status: QuotationStatus.APPROVED, customerVisibleAt: new Date() },
+    });
+    quoteToNegotiate = await prisma.quotation.findUnique({
+      where: { id: fresh.id },
+      include: { lines: true, customer: { include: { users: true } } },
+    });
+  }
 
   if (quoteToNegotiate && quoteToNegotiate.lines.length > 0 && quoteToNegotiate.customer.users.length > 0) {
     const targetLine = quoteToNegotiate.lines[0];
@@ -86,16 +102,18 @@ async function runTests() {
 
   // Test 3: Confirmation Precondition Check
   console.log('\n3. Testing Quotation Confirmation Preconditions...');
-  const draftQuote = await prisma.quotation.findFirst({
+  let draftQuote = await prisma.quotation.findFirst({
     where: { status: QuotationStatus.DRAFT },
   });
 
-  if (draftQuote) {
-    const draftValidation = await validateConfirmation(draftQuote.id, draftQuote.customerId);
-    console.log(`   ✓ DRAFT quotation blocked from confirmation: valid=${draftValidation.valid} (Reason: "${draftValidation.reason}")`);
-    if (draftValidation.valid) {
-      throw new Error('DRAFT quotation should NOT be confirmable!');
-    }
+  if (!draftQuote) {
+    draftQuote = await createQuotation(repUser.id, customerUser.customerId!, 'USD');
+  }
+
+  const draftValidation = await validateConfirmation(draftQuote.id, draftQuote.customerId);
+  console.log(`   ✓ DRAFT quotation blocked from confirmation: valid=${draftValidation.valid} (Reason: "${draftValidation.reason}")`);
+  if (draftValidation.valid) {
+    throw new Error('DRAFT quotation should NOT be confirmable!');
   }
 
   // Test 4: Concurrency & Row-Level Lock Reservation
@@ -180,4 +198,7 @@ runTests()
     console.error('\n❌ Test failed:', e);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await purgeAllQuotationsAndTransactions();
+    await prisma.$disconnect();
+  });

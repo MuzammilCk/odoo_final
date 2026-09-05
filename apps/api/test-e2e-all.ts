@@ -33,6 +33,7 @@ import { getRecommendations } from './src/modules/recommendations/recommendation
 import { createApprovalRequest, decideStep } from './src/modules/approvals/approval.service.js';
 import { resolvePrice } from './src/modules/products/services/price-list.service.js';
 import { createNegotiationRequest, resolveNegotiation } from './src/modules/negotiations/negotiation.service.js';
+import { purgeAllQuotationsAndTransactions } from './src/scripts/clean-all-quotations.js';
 import { validateConfirmation, confirmQuotation } from './src/modules/portal/portal.service.js';
 import { calculateAllocation, acceptAllocation } from './src/modules/fulfillment/services/allocation-engine.service.js';
 import { generateOneTimeInvoice, generateRecurringInvoices } from './src/modules/billing/services/invoice-generator.service.js';
@@ -388,4 +389,7 @@ runFullVerification()
     console.error('\n❌ E2E VERIFICATION FAILED:', err);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await purgeAllQuotationsAndTransactions();
+    await prisma.$disconnect();
+  });

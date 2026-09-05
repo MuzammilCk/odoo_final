@@ -137,34 +137,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo credentials hint */}
-          <div className="mt-6 pt-5 border-t border-surface-border">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                Quick Demo Access
-              </span>
-              <span className="text-[10px] text-slate-500 font-mono">pwd: demo123</span>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {[
-                ['admin@demo.com', 'Admin', 'border-brand-500/30 text-brand-300'],
-                ['rep@demo.com', 'Sales Rep', 'border-deal-500/30 text-deal-300'],
-                ['manager@demo.com', 'Manager', 'border-amber-500/30 text-amber-300'],
-                ['finance@demo.com', 'Finance Ops', 'border-purple-500/30 text-purple-300'],
-                ['customer@acme.com', 'Customer', 'border-emerald-500/30 text-emerald-300 col-span-2'],
-              ].map(([demoEmail, label, style]) => (
-                <button
-                  key={demoEmail}
-                  type="button"
-                  onClick={() => { setEmail(demoEmail); setPassword('demo123'); }}
-                  className={`text-left px-2.5 py-1.5 rounded-lg bg-surface-elevated/80 border ${style} hover:bg-surface-elevated hover:brightness-125 transition text-xs flex items-center justify-between group cursor-pointer`}
-                >
-                  <span className="font-medium">{label}</span>
-                  <span className="text-[10px] opacity-60 font-mono group-hover:opacity-100">Fill</span>
-                </button>
-              ))}
-            </div>
-          </div>
+
         </div>
       </div>
     </div>

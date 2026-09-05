@@ -73,6 +73,12 @@ async function verifyAdminBlocked() {
     throw new Error(`Expected 201 Created for sales rep, got ${repCreateRes.status}`);
   }
 
+  const createdData = (await repCreateRes.json()) as { quotation?: { id: string } };
+  if (createdData?.quotation?.id) {
+    await prisma.auditLog.deleteMany({ where: { quotationId: createdData.quotation.id } });
+    await prisma.quotation.delete({ where: { id: createdData.quotation.id } });
+  }
+
   console.log('\n✅ ALL CHECKS PASSED: ADMIN IS COMPLETELY PROHIBITED FROM CREATING QUOTATIONS!\n');
 }
 
