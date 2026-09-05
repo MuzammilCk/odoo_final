@@ -20,7 +20,7 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
-# Keep the example
+# Keep the example — teammates use this to bootstrap
 !.env.example
 
 # ---------- Logs ----------
@@ -30,9 +30,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
 # ---------- OS files ----------
 .DS_Store
+.DS_Store?
 Thumbs.db
 ehthumbs.db
 Desktop.ini
@@ -44,6 +46,7 @@ Desktop.ini
 .vscode/
 !.vscode/settings.json
 !.vscode/extensions.json
+!.vscode/launch.json
 .idea/
 *.sublime-project
 *.sublime-workspace
@@ -55,16 +58,34 @@ Desktop.ini
 # ---------- Testing ----------
 coverage/
 .nyc_output/
+vitest.results.json
 
 # ---------- Prisma ----------
-# Migrations are tracked — do NOT ignore prisma/migrations/
-# Generated client is auto-generated at install
+# Migrations ARE tracked — do NOT ignore prisma/migrations/
+# Generated client is auto-generated on postinstall — not committed
 prisma/generated/
+
+# ---------- Prisma shadow database (created by migrate dev) ----------
+# These are auto-cleaned but just in case
+*.db
+*.db-journal
+
+# ---------- TypeScript compiled output ----------
+# tsconfig.tsbuildinfo files are project-specific build caches
+apps/api/tsconfig.tsbuildinfo
+apps/web/tsconfig.tsbuildinfo
+packages/shared/tsconfig.tsbuildinfo
+
+# ---------- Package manager lockfile helpers ----------
+# npm lockfile IS committed (source of truth for reproducible installs)
+# !package-lock.json  ← do not add this; we WANT to commit lockfile
 
 # ---------- Misc ----------
 *.pid
-*.seed
 *.pid.lock
 .cache/
 tmp/
 temp/
+
+# ---------- Docker (if added later) ----------
+.dockerignore

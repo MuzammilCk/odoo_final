@@ -1,6 +1,8 @@
 # DealFlow360 — Implementation Tracker
 
 > **Living document.** Mark items `[x]` when done, `[/]` when in progress. Each row is ~15–30 minutes of work.
+> **Foundation owner:** You (solo) — teammates pull and bootstrap after F4 is pushed.
+> **Started:** 2026-09-05 ~18:48 IST
 
 ---
 
@@ -8,7 +10,7 @@
 
 | Phase | Hours | What happens |
 |---|---|---|
-| **Foundation** | T+0 → T+2 | Monorepo, Prisma schema, seed, auth shell — **all 3 together** |
+| **Foundation** | T+0 → T+2 | Monorepo, Prisma schema, seed, auth shell — **1 person builds, others pull** |
 | **Parallel Build** | T+2 → T+12 | Each lane builds independently via micro-steps |
 | **Checkpoint 1** | T+6 | Quick sync: each lane's core happy path works solo? |
 | **Integration** | T+12 → T+14 | Wire contracts 1–3, run full flow |
@@ -17,18 +19,19 @@
 
 ---
 
-## Phase 0 — Foundation (everyone together)
+## Phase 0 — Foundation (1 person builds → everyone pulls)
 
-- [ ] Monorepo scaffold — `apps/web`, `apps/api`, `packages/shared`, `prisma/`
-- [ ] Prisma schema — transcribe all tables from Section 5
-- [ ] Run initial migration — `npx prisma migrate dev --name init`
-- [ ] Seed script — all fixtures (5 roles, 2 customers, 6+ products, 2 warehouses, discount tiers, 4 quotation states, fulfilled allocation, stalled quotation, anomaly data)
-- [ ] Auth boilerplate — JWT, bcrypt, login/signup, middleware
-- [ ] RBAC middleware — role + route guard
-- [ ] Shared types — enums, status types
-- [ ] Frontend shell — React + Vite + Tailwind, routing, layout
-- [ ] `.env.example`
+- [x] **F1** — Monorepo scaffold — `apps/web`, `apps/api`, `packages/shared`, `prisma/` ✅ (API health ✓, web build ✓)
+- [x] **F2** — Prisma schema — all 16 models / 25 tables from §5.5–§5.28 (locked spec) ✅
+- [x] **F2** — Migration `20260905133716_init` applied — 25 tables verified in DB ✅
+- [x] **F3** — Seed script — 6 users, 3 tiers, 2 customers, 3 categories, 6 products, 2 warehouses, 5 quotations (DRAFT/PENDING/NEGOT/CONFIRMED/STALLED), backorder + subscription ✅
+- [x] **F4** — Auth boilerplate — JWT, bcrypt, login/signup, middleware ✅
+- [x] **F4** — RBAC middleware — `requireRole()` factory, portal isolation (/app/* vs /portal/*) ✅
+- [x] **F4** — Shared types — enums + JwtPayload in shared package ✅
+- [x] **F4** — Frontend shell — AuthContext, ProtectedRoute, AppLayout, PortalLayout, LoginPage, all route slots ✅
+- [ ] **F4** — `.env.example`
 - [ ] Verify: both apps run, seed loads, login works, RBAC blocks
+- [ ] **GIT PUSH** — push to main → teammates pull + `npm install` + `npx prisma migrate dev` + `npx prisma db seed`
 
 ---
 

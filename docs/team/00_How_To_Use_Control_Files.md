@@ -122,3 +122,59 @@ Each lane plan is self-contained — you shouldn't need to open either of the ot
 ## One small note
 
 The Excalidraw file has a handful of stray text elements sitting outside any frame that look like an unrelated JavaScript snippet (something about caching a computed style property) — leftover scratch content, not part of the product flow. Safe to ignore or delete from the board; it wasn't used anywhere in these team files.
+
+---
+
+## Teammate Bootstrap (after F1–F4 are pushed to main)
+
+> **Read this when you join after the foundation is pushed.**
+
+1. **Pull main** — foundation is already scaffolded and verified:
+   ```bash
+   git pull origin main
+   ```
+
+2. **Install dependencies** (all workspaces from root):
+   ```bash
+   npm install
+   ```
+
+3. **Copy environment file** and fill in your Postgres connection string:
+   ```bash
+   cp .env.example .env
+   # Edit .env: set DATABASE_URL to your local Postgres
+   ```
+
+4. **Apply migrations** (schema already created — just sync your DB):
+   ```bash
+   npx prisma migrate dev
+   ```
+
+5. **Seed the database** (demo users, products, quotations, warehouses):
+   ```bash
+   npx prisma db seed
+   ```
+
+6. **Verify everything boots:**
+   ```bash
+   npm run dev        # starts both apps/api (port 3001) and apps/web (port 5173)
+   ```
+   Then:
+   - `GET http://localhost:3001/api/v1/health` → `{ "status": "ok" }`
+   - `http://localhost:5173` → redirects to `/login`
+
+7. **Cut your branch and start your lane:**
+   ```bash
+   git checkout -b lane-b   # or lane-c
+   ```
+   Open your `0X_Plan_Lane_X.md` and start from the first unchecked micro-step.
+
+### Foundation status (updated 2026-09-05)
+
+| Step | Status | Notes |
+|---|---|---|
+| F1 — Monorepo scaffold | ✅ Done | API health ✓, web build ✓ |
+| F2 — Prisma schema | ✅ Done | 25 tables, migration `20260905133716_init` applied |
+| F3 — Seed data | ✅ Done | 6 users, 5 quotations, backorder, subscription |
+| F4 — Auth + RBAC + Layouts | ✅ Done | JWT login ✓, /me ✓, AppLayout + PortalLayout ✓ |
+

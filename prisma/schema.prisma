@@ -1,0 +1,763 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// DealFlow360 — Prisma Schema
+// Source of truth: docs/5_Database_Schema.md (LOCKED)
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS  (§5.3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  SALES_REP
+  MANAGER
+  FINANCE_OPS
+  CUSTOMER
+}
+
+enum QuotationStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  UNDER_NEGOTIATION
+  CONFIRMED
+  REJECTED
+}
+
+enum ApprovalLevel {
+  MANAGER
+  FINANCE
+}
+
+enum ApprovalStepStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURNED
+  SKIPPED
+}
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURNED
+  SUPERSEDED
+}
+
+enum NegotiationStatus {
+  OPEN
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  RESOLVED
+}
+
+enum NegotiationType {
+  LINE_COMMENT
+  CHANGE_REQUEST
+  COUNTER_DISCOUNT
+  DELIVERY_DATE_REQUEST
+}
+
+enum FulfillmentStatus {
+  SPLIT_PENDING
+  PARTIAL
+  BACKORDER
+  FULFILLED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  VOID
+}
+
+enum PaymentStatus {
+  RECORDED
+  REVERSED
+}
+
+enum CreditNoteStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+enum DealHealthType {
+  STALLED
+  DISCOUNT_ANOMALY
+  DELIVERY_SLIPPAGE
+}
+
+enum DealHealthStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+enum AuditAction {
+  USER_CREATED
+  USER_ROLE_CHANGED
+  PRODUCT_CREATED
+  PRODUCT_UPDATED
+  PRICE_LIST_UPDATED
+  DISCOUNT_RULE_UPDATED
+  APPROVAL_CHAIN_UPDATED
+  WAREHOUSE_UPDATED
+  QUOTATION_CREATED
+  QUOTATION_UPDATED
+  QUOTATION_SUBMITTED
+  DISCOUNT_CHANGED
+  APPROVAL_CREATED
+  APPROVAL_APPROVED
+  APPROVAL_REJECTED
+  APPROVAL_RETURNED
+  NEGOTIATION_CREATED
+  NEGOTIATION_RESOLVED
+  QUOTATION_CONFIRMED
+  FULFILLMENT_CREATED
+  FULFILLMENT_UPDATED
+  BACKORDER_CREATED
+  BACKORDER_CONSOLIDATED
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_UPDATED
+  INVOICE_CREATED
+  PAYMENT_RECORDED
+  PAYMENT_REVERSED
+  CREDIT_NOTE_CREATED
+  DEAL_HEALTH_CREATED
+  DEAL_HEALTH_UPDATED
+  NUDGE_SENT
+  ESCALATION_TRIGGERED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IDENTITY / ACCESS  (§5.5, §5.6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// §5.5 — Every authenticated account.
+/// Customer portal accounts use role=CUSTOMER and customer_id IS NOT NULL.
+/// All other roles must have customer_id IS NULL (enforced in service layer).
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique @db.VarChar(320)
+  passwordHash String    @map("password_hash")
+  role         UserRole
+  firstName    String    @map("first_name") @db.VarChar(100)
+  lastName     String    @map("last_name") @db.VarChar(100)
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz()
+  customerId   String?   @map("customer_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  customer                Customer?            @relation(fields: [customerId], references: [id])
+  quotations              Quotation[]          @relation("SalesRepQuotations")
+  approvalSteps           ApprovalStep[]       @relation("ApproverSteps")
+  approvalRequestsCreated ApprovalRequest[]    @relation("ApprovalCreatedBy")
+  negotiationRequestsMade NegotiationRequest[] @relation("NegotiationRequester")
+  negotiationResolutions  NegotiationRequest[] @relation("NegotiationResolver")
+  paymentsRecorded        Payment[]            @relation("PaymentCreatedBy")
+  creditNotesCreated      CreditNote[]         @relation("CreditNoteCreatedBy")
+  auditLogs               AuditLog[]           @relation("AuditActor")
+  dealHealthAcknowledged  DealHealthFlag[]     @relation("DealHealthAcknowledgedBy")
+  dealHealthResolved      DealHealthFlag[]     @relation("DealHealthResolvedBy")
+
+  @@index([role])
+  @@index([isActive])
+  @@index([customerId])
+  @@map("users")
+}
+
+/// §5.6 — B2B customer organisation.
+model Customer {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String   @unique @db.VarChar(200)
+  discountTierId String   @map("discount_tier_id") @db.Uuid
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  discountTier          DiscountTier           @relation(fields: [discountTierId], references: [id])
+  users                 User[]
+  quotations            Quotation[]
+  negotiationRequests   NegotiationRequest[]
+  subscriptionInstances SubscriptionInstance[]
+
+  @@index([discountTierId])
+  @@map("customers")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CATALOG / COMMERCIAL CONFIGURATION  (§5.7 – §5.12)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// §5.7 — Product category for catalog and discount governance.
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(120)
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  products                Product[]
+  categoryDiscountCeiling CategoryDiscountCeiling?
+
+  @@map("categories")
+}
+
+/// §5.8 — Sellable product, service, or subscription-capable item.
+model Product {
+  id                String   @id @default(uuid()) @db.Uuid
+  sku               String   @unique @db.VarChar(100)
+  name              String   @db.VarChar(200)
+  categoryId        String   @map("category_id") @db.Uuid
+  description       String?
+  unit              String   @db.VarChar(50)
+  basePrice         Decimal  @map("base_price") @db.Decimal(18, 2)
+  taxRate           Decimal  @default(0) @map("tax_rate") @db.Decimal(7, 4)
+  isSubscription    Boolean  @default(false) @map("is_subscription")
+  recurringInterval String?  @map("recurring_interval") @db.VarChar(20)
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  category              Category               @relation(fields: [categoryId], references: [id])
+  variants              ProductVariant[]
+  priceListEntries      PriceListEntry[]
+  quotationLines        QuotationLine[]
+  stockLevels           StockLevel[]
+  subscriptionInstances SubscriptionInstance[]
+  replenishmentRules    ReplenishmentRule[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([isSubscription])
+  @@map("products")
+}
+
+/// §5.9 — Optional product attribute/value variants with price adjustments.
+model ProductVariant {
+  id             String   @id @default(uuid()) @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  attributeName  String   @map("attribute_name") @db.VarChar(100)
+  attributeValue String   @map("attribute_value") @db.VarChar(100)
+  extraPrice     Decimal  @default(0) @map("extra_price") @db.Decimal(18, 2)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  product        Product         @relation(fields: [productId], references: [id])
+  quotationLines QuotationLine[]
+
+  @@unique([productId, attributeName, attributeValue])
+  @@map("product_variants")
+}
+
+/// §5.10 — Customer-level discount ceilings.
+model DiscountTier {
+  id                     String   @id @default(uuid()) @db.Uuid
+  name                   String   @unique @db.VarChar(80)
+  defaultDiscountCeiling Decimal  @map("default_discount_ceiling") @db.Decimal(7, 4)
+  isActive               Boolean  @default(true) @map("is_active")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  customers        Customer[]
+  priceListEntries PriceListEntry[]
+
+  @@map("discount_tiers")
+}
+
+/// §5.11 — Category-specific discount ceilings (one per category).
+model CategoryDiscountCeiling {
+  id          String   @id @default(uuid()) @db.Uuid
+  categoryId  String   @unique @map("category_id") @db.Uuid
+  maxDiscount Decimal  @map("max_discount") @db.Decimal(7, 4)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@map("category_discount_ceilings")
+}
+
+/// §5.12 — Tier/currency/product pricing rules.
+model PriceListEntry {
+  id             String   @id @default(uuid()) @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  discountTierId String   @map("discount_tier_id") @db.Uuid
+  currencyCode   String   @map("currency_code") @db.Char(3)
+  price          Decimal  @db.Decimal(18, 2)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  product      Product      @relation(fields: [productId], references: [id])
+  discountTier DiscountTier @relation(fields: [discountTierId], references: [id])
+
+  @@unique([productId, discountTierId, currencyCode])
+  @@map("price_list_entries")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OPERATIONAL CONFIGURATION  (§5.13, §5.14)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// §5.13 — Physical fulfillment location.
+model Warehouse {
+  id                 String   @id @default(uuid()) @db.Uuid
+  name               String   @unique @db.VarChar(160)
+  address            String?
+  shippingCostWeight Decimal  @default(1) @map("shipping_cost_weight") @db.Decimal(12, 4)
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  stockLevels            StockLevel[]
+  fulfillmentAllocations FulfillmentAllocation[]
+  replenishmentRules     ReplenishmentRule[]
+
+  @@map("warehouses")
+}
+
+/// §5.14 — Optional warehouse/product replenishment configuration.
+model ReplenishmentRule {
+  id              String   @id @default(uuid()) @db.Uuid
+  warehouseId     String   @map("warehouse_id") @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  reorderPoint    Decimal  @map("reorder_point") @db.Decimal(18, 4)
+  reorderQuantity Decimal  @map("reorder_quantity") @db.Decimal(18, 4)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@unique([warehouseId, productId])
+  @@map("replenishment_rules")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SALES / QUOTATION  (§5.15 – §5.19)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// §5.15 — Central live commercial business object.
+model Quotation {
+  id                String          @id @default(uuid()) @db.Uuid
+  quoteNumber       String          @unique @map("quote_number") @db.VarChar(50)
+  customerId        String          @map("customer_id") @db.Uuid
+  salesRepId        String          @map("sales_rep_id") @db.Uuid
+  status            QuotationStatus
+  currencyCode      String          @map("currency_code") @db.Char(3)
+  subtotal          Decimal         @default(0) @db.Decimal(18, 2)
+  discountTotal     Decimal         @default(0) @map("discount_total") @db.Decimal(18, 2)
+  taxTotal          Decimal         @default(0) @map("tax_total") @db.Decimal(18, 2)
+  grandTotal        Decimal         @default(0) @map("grand_total") @db.Decimal(18, 2)
+  marginAmount      Decimal         @default(0) @map("margin_amount") @db.Decimal(18, 2)
+  marginPercent     Decimal         @default(0) @map("margin_percent") @db.Decimal(7, 4)
+  blendedRiskScore  Decimal?        @map("blended_risk_score") @db.Decimal(12, 4)
+  riskLevel         String?         @map("risk_level") @db.VarChar(20)
+  currentVersion    Int             @default(1) @map("current_version")
+  customerVisibleAt DateTime?       @map("customer_visible_at") @db.Timestamptz()
+  confirmedAt       DateTime?       @map("confirmed_at") @db.Timestamptz()
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  customer               Customer                @relation(fields: [customerId], references: [id])
+  salesRep               User                    @relation("SalesRepQuotations", fields: [salesRepId], references: [id])
+  lines                  QuotationLine[]
+  approvalRequests       ApprovalRequest[]
+  negotiationRequests    NegotiationRequest[]
+  fulfillmentAllocations FulfillmentAllocation[]
+  subscriptionInstances  SubscriptionInstance[]
+  invoices               Invoice[]
+  dealHealthFlags        DealHealthFlag[]
+  auditLogs              AuditLog[]
+  Backorder              Backorder[]
+
+  @@index([customerId])
+  @@index([salesRepId])
+  @@index([status])
+  @@index([updatedAt])
+  @@index([createdAt])
+  @@index([salesRepId, status, updatedAt])
+  @@map("quotations")
+}
+
+/// §5.16 — Current line-level commercial content of a quotation.
+model QuotationLine {
+  id                     String   @id @default(uuid()) @db.Uuid
+  quotationId            String   @map("quotation_id") @db.Uuid
+  productId              String   @map("product_id") @db.Uuid
+  productVariantId       String?  @map("product_variant_id") @db.Uuid
+  descriptionSnapshot    String   @map("description_snapshot")
+  skuSnapshot            String   @map("sku_snapshot") @db.VarChar(100)
+  quantity               Decimal  @db.Decimal(18, 4)
+  unitPrice              Decimal  @map("unit_price") @db.Decimal(18, 2)
+  discountPercent        Decimal  @default(0) @map("discount_percent") @db.Decimal(7, 4)
+  discountAmount         Decimal  @default(0) @map("discount_amount") @db.Decimal(18, 2)
+  taxAmount              Decimal  @default(0) @map("tax_amount") @db.Decimal(18, 2)
+  lineTotal              Decimal  @map("line_total") @db.Decimal(18, 2)
+  estimatedUnitCost      Decimal  @default(0) @map("estimated_unit_cost") @db.Decimal(18, 2)
+  estimatedMarginAmount  Decimal  @default(0) @map("estimated_margin_amount") @db.Decimal(18, 2)
+  estimatedMarginPercent Decimal  @default(0) @map("estimated_margin_percent") @db.Decimal(7, 4)
+  allowedDiscountPercent Decimal  @map("allowed_discount_percent") @db.Decimal(7, 4)
+  discountOveragePercent Decimal  @default(0) @map("discount_overage_percent") @db.Decimal(7, 4)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  quotation              Quotation               @relation(fields: [quotationId], references: [id])
+  product                Product                 @relation(fields: [productId], references: [id])
+  productVariant         ProductVariant?         @relation(fields: [productVariantId], references: [id])
+  negotiationRequests    NegotiationRequest[]
+  fulfillmentAllocations FulfillmentAllocation[]
+  backorders             Backorder[]
+  subscriptionInstance   SubscriptionInstance?
+
+  @@index([quotationId])
+  @@index([productId])
+  @@map("quotation_lines")
+}
+
+/// §5.17 — One approval cycle for one quotation version.
+model ApprovalRequest {
+  id                    String                @id @default(uuid()) @db.Uuid
+  quotationId           String                @map("quotation_id") @db.Uuid
+  quotationVersion      Int                   @map("quotation_version")
+  status                ApprovalRequestStatus
+  riskScore             Decimal               @map("risk_score") @db.Decimal(12, 4)
+  riskLevel             String                @map("risk_level") @db.VarChar(20)
+  requiredApprovalCount Int                   @map("required_approval_count")
+  termsSnapshot         Json                  @map("terms_snapshot")
+  submittedAt           DateTime              @map("submitted_at") @db.Timestamptz()
+  completedAt           DateTime?             @map("completed_at") @db.Timestamptz()
+  createdBy             String                @map("created_by") @db.Uuid
+  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt             DateTime              @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  quotation Quotation      @relation(fields: [quotationId], references: [id])
+  creator   User           @relation("ApprovalCreatedBy", fields: [createdBy], references: [id])
+  steps     ApprovalStep[]
+
+  @@unique([quotationId, quotationVersion])
+  @@index([quotationId, status])
+  @@index([quotationId, quotationVersion])
+  @@map("approval_requests")
+}
+
+/// §5.18 — Individual ordered reviewer steps within an approval request.
+model ApprovalStep {
+  id                String             @id @default(uuid()) @db.Uuid
+  approvalRequestId String             @map("approval_request_id") @db.Uuid
+  sequenceNo        Int                @map("sequence_no")
+  approvalLevel     ApprovalLevel      @map("approval_level")
+  approverUserId    String             @map("approver_user_id") @db.Uuid
+  status            ApprovalStepStatus @default(PENDING)
+  decisionReason    String?            @map("decision_reason")
+  actedAt           DateTime?          @map("acted_at") @db.Timestamptz()
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  approvalRequest ApprovalRequest @relation(fields: [approvalRequestId], references: [id])
+  approver        User            @relation("ApproverSteps", fields: [approverUserId], references: [id])
+
+  @@unique([approvalRequestId, sequenceNo])
+  @@index([approvalRequestId, status])
+  @@index([approverUserId, status])
+  @@map("approval_steps")
+}
+
+/// §5.19 — Customer-initiated quotation negotiation/change requests.
+model NegotiationRequest {
+  id                       String            @id @default(uuid()) @db.Uuid
+  quotationId              String            @map("quotation_id") @db.Uuid
+  customerId               String            @map("customer_id") @db.Uuid
+  requestedByUserId        String            @map("requested_by_user_id") @db.Uuid
+  negotiationType          NegotiationType   @map("negotiation_type")
+  quotationLineId          String?           @map("quotation_line_id") @db.Uuid
+  message                  String?
+  requestedDiscountPercent Decimal?          @map("requested_discount_percent") @db.Decimal(7, 4)
+  requestedDeliveryDate    DateTime?         @map("requested_delivery_date") @db.Date
+  status                   NegotiationStatus @default(OPEN)
+  resolvedByUserId         String?           @map("resolved_by_user_id") @db.Uuid
+  resolvedAt               DateTime?         @map("resolved_at") @db.Timestamptz()
+  createdAt                DateTime          @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt                DateTime          @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  quotation     Quotation      @relation(fields: [quotationId], references: [id])
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  requestedBy   User           @relation("NegotiationRequester", fields: [requestedByUserId], references: [id])
+  quotationLine QuotationLine? @relation(fields: [quotationLineId], references: [id])
+  resolvedBy    User?          @relation("NegotiationResolver", fields: [resolvedByUserId], references: [id])
+
+  @@index([quotationId, status])
+  @@index([customerId, status])
+  @@map("negotiation_requests")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FULFILLMENT  (§5.20 – §5.22)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// §5.20 — Current inventory position for one product in one warehouse.
+/// available = quantity_on_hand - quantity_reserved (never stored; always computed)
+model StockLevel {
+  id               String   @id @default(uuid()) @db.Uuid
+  warehouseId      String   @map("warehouse_id") @db.Uuid
+  productId        String   @map("product_id") @db.Uuid
+  quantityOnHand   Decimal  @default(0) @map("quantity_on_hand") @db.Decimal(18, 4)
+  quantityReserved Decimal  @default(0) @map("quantity_reserved") @db.Decimal(18, 4)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@unique([warehouseId, productId])
+  @@index([productId, warehouseId])
+  @@map("stock_levels")
+}
+
+/// §5.21 — Quantity assigned to a warehouse for a quotation line.
+model FulfillmentAllocation {
+  id                    String            @id @default(uuid()) @db.Uuid
+  quotationId           String            @map("quotation_id") @db.Uuid
+  quotationLineId       String            @map("quotation_line_id") @db.Uuid
+  warehouseId           String            @map("warehouse_id") @db.Uuid
+  quantityAllocated     Decimal           @map("quantity_allocated") @db.Decimal(18, 4)
+  quantityFulfilled     Decimal           @default(0) @map("quantity_fulfilled") @db.Decimal(18, 4)
+  status                FulfillmentStatus
+  estimatedShipmentCost Decimal           @default(0) @map("estimated_shipment_cost") @db.Decimal(18, 2)
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt             DateTime          @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  quotation     Quotation     @relation(fields: [quotationId], references: [id])
+  quotationLine QuotationLine @relation(fields: [quotationLineId], references: [id])
+  warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])
+  backorders    Backorder[]
+
+  @@index([quotationId, status])
+  @@index([quotationLineId])
+  @@index([warehouseId])
+  @@map("fulfillment_allocations")
+}
+
+/// §5.22 — Unfulfilled quantity remaining after an allocation attempt.
+model Backorder {
+  id                      String   @id @default(uuid()) @db.Uuid
+  quotationId             String   @map("quotation_id") @db.Uuid
+  quotationLineId         String   @map("quotation_line_id") @db.Uuid
+  fulfillmentAllocationId String?  @map("fulfillment_allocation_id") @db.Uuid
+  quantityBackordered     Decimal  @map("quantity_backordered") @db.Decimal(18, 4)
+  quantityFulfilledLater  Decimal  @default(0) @map("quantity_fulfilled_later") @db.Decimal(18, 4)
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  quotation             Quotation              @relation(fields: [quotationId], references: [id])
+  quotationLine         QuotationLine          @relation(fields: [quotationLineId], references: [id])
+  fulfillmentAllocation FulfillmentAllocation? @relation(fields: [fulfillmentAllocationId], references: [id])
+
+  @@index([quotationId])
+  @@index([quotationLineId])
+  @@map("backorders")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BILLING  (§5.23 – §5.26)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// §5.23 — Recurring subscription created from a recurring quotation line.
+model SubscriptionInstance {
+  id                 String             @id @default(uuid()) @db.Uuid
+  quotationId        String             @map("quotation_id") @db.Uuid
+  quotationLineId    String             @unique @map("quotation_line_id") @db.Uuid
+  customerId         String             @map("customer_id") @db.Uuid
+  productId          String             @map("product_id") @db.Uuid
+  status             SubscriptionStatus
+  quantity           Decimal            @db.Decimal(18, 4)
+  unitPrice          Decimal            @map("unit_price") @db.Decimal(18, 2)
+  currencyCode       String             @map("currency_code") @db.Char(3)
+  billingInterval    String             @map("billing_interval") @db.VarChar(20)
+  currentPeriodStart DateTime           @map("current_period_start") @db.Date
+  currentPeriodEnd   DateTime           @map("current_period_end") @db.Date
+  nextBillingDate    DateTime           @map("next_billing_date") @db.Date
+  cancelledAt        DateTime?          @map("cancelled_at") @db.Timestamptz()
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  quotation     Quotation     @relation(fields: [quotationId], references: [id])
+  quotationLine QuotationLine @relation(fields: [quotationLineId], references: [id])
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  product       Product       @relation(fields: [productId], references: [id])
+  invoices      Invoice[]
+  creditNotes   CreditNote[]
+
+  @@index([customerId, status])
+  @@index([nextBillingDate, status])
+  @@map("subscription_instances")
+}
+
+/// §5.24 — Billing records from fulfilled one-time amounts and recurring billing events.
+model Invoice {
+  id                     String        @id @default(uuid()) @db.Uuid
+  invoiceNumber          String        @unique @map("invoice_number") @db.VarChar(50)
+  quotationId            String        @map("quotation_id") @db.Uuid
+  subscriptionInstanceId String?       @map("subscription_instance_id") @db.Uuid
+  currencyCode           String        @map("currency_code") @db.Char(3)
+  status                 InvoiceStatus
+  subtotal               Decimal       @default(0) @db.Decimal(18, 2)
+  taxTotal               Decimal       @default(0) @map("tax_total") @db.Decimal(18, 2)
+  totalAmount            Decimal       @default(0) @map("total_amount") @db.Decimal(18, 2)
+  issuedAt               DateTime?     @map("issued_at") @db.Timestamptz()
+  dueAt                  DateTime?     @map("due_at") @db.Timestamptz()
+  createdAt              DateTime      @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt              DateTime      @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  quotation            Quotation             @relation(fields: [quotationId], references: [id])
+  subscriptionInstance SubscriptionInstance? @relation(fields: [subscriptionInstanceId], references: [id])
+  payments             Payment[]
+  creditNotes          CreditNote[]
+
+  @@index([quotationId, status])
+  @@index([subscriptionInstanceId])
+  @@map("invoices")
+}
+
+/// §5.25 — Payments against invoices.
+model Payment {
+  id               String        @id @default(uuid()) @db.Uuid
+  invoiceId        String        @map("invoice_id") @db.Uuid
+  amount           Decimal       @db.Decimal(18, 2)
+  currencyCode     String        @map("currency_code") @db.Char(3)
+  status           PaymentStatus @default(RECORDED)
+  paymentReference String        @unique @map("payment_reference") @db.VarChar(120)
+  paidAt           DateTime      @map("paid_at") @db.Timestamptz()
+  createdBy        String        @map("created_by") @db.Uuid
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  invoice       Invoice @relation(fields: [invoiceId], references: [id])
+  createdByUser User    @relation("PaymentCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+/// §5.26 — Billing adjustments from refunds, cancellations, or subscription changes.
+model CreditNote {
+  id                     String           @id @default(uuid()) @db.Uuid
+  creditNoteNumber       String           @unique @map("credit_note_number") @db.VarChar(50)
+  invoiceId              String           @map("invoice_id") @db.Uuid
+  subscriptionInstanceId String?          @map("subscription_instance_id") @db.Uuid
+  amount                 Decimal          @db.Decimal(18, 2)
+  currencyCode           String           @map("currency_code") @db.Char(3)
+  reason                 String
+  status                 CreditNoteStatus
+  issuedAt               DateTime?        @map("issued_at") @db.Timestamptz()
+  createdBy              String           @map("created_by") @db.Uuid
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt              DateTime         @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  invoice              Invoice               @relation(fields: [invoiceId], references: [id])
+  subscriptionInstance SubscriptionInstance? @relation(fields: [subscriptionInstanceId], references: [id])
+  createdByUser        User                  @relation("CreditNoteCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([invoiceId])
+  @@map("credit_notes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MONITORING / AUDIT  (§5.27, §5.28)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// §5.27 — Persistent exceptions detected by the Deal Health layer.
+model DealHealthFlag {
+  id             String           @id @default(uuid()) @db.Uuid
+  quotationId    String           @map("quotation_id") @db.Uuid
+  type           DealHealthType
+  status         DealHealthStatus @default(OPEN)
+  severity       String           @db.VarChar(20)
+  message        String
+  detectedValue  Decimal?         @map("detected_value") @db.Decimal(18, 4)
+  expectedValue  Decimal?         @map("expected_value") @db.Decimal(18, 4)
+  detectedAt     DateTime         @map("detected_at") @db.Timestamptz()
+  acknowledgedBy String?          @map("acknowledged_by") @db.Uuid
+  acknowledgedAt DateTime?        @map("acknowledged_at") @db.Timestamptz()
+  resolvedBy     String?          @map("resolved_by") @db.Uuid
+  resolvedAt     DateTime?        @map("resolved_at") @db.Timestamptz()
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  quotation          Quotation @relation(fields: [quotationId], references: [id])
+  acknowledgedByUser User?     @relation("DealHealthAcknowledgedBy", fields: [acknowledgedBy], references: [id])
+  resolvedByUser     User?     @relation("DealHealthResolvedBy", fields: [resolvedBy], references: [id])
+
+  @@index([quotationId, status])
+  @@index([type, status])
+  @@index([detectedAt])
+  @@map("deal_health_flags")
+}
+
+/// §5.28 — Immutable record of important business actions. Append-only.
+model AuditLog {
+  id          String      @id @default(uuid()) @db.Uuid
+  actorUserId String      @map("actor_user_id") @db.Uuid
+  action      AuditAction
+  entityType  String      @map("entity_type") @db.VarChar(80)
+  entityId    String      @map("entity_id") @db.Uuid
+  quotationId String?     @map("quotation_id") @db.Uuid
+  reason      String?
+  metadata    Json        @default("{}")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz()
+
+  // Relations — no updatedAt: audit logs are append-only
+  actor     User       @relation("AuditActor", fields: [actorUserId], references: [id])
+  quotation Quotation? @relation(fields: [quotationId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([quotationId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@map("audit_logs")
+}
