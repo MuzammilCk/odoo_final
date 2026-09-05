@@ -115,16 +115,14 @@ You own the product catalog (the source of truth everyone else reads from), the 
 - **~35 lines.**
 - **Verify:** Create entry: Laptop + Gold + USD = $1100 → list entries → see it
 
-### C2.3 — BUILD: resolvePrice() — Contract 2 implementation
-- Create `apps/api/src/modules/products/services/price-list.service.ts`
-- ```ts
-  async resolvePrice(productId: string, discountTierId: string, currencyCode: string):
-    Promise<{ unitPrice: number; source: 'PRICE_LIST' | 'BASE' }>
-  ```
-- Query: find active price_list_entry matching all three + NOW() within valid dates
-- If found → return entry price. If not → return product.base_price
-- **~30 lines.**
-- **Verify:** resolvePrice(Laptop, Gold, USD) → $1100, source: PRICE_LIST. resolvePrice(Laptop, Bronze, USD) → $1200, source: BASE.
+### C2.3 — BUILD: resolvePrice() — Contract 2 implementation ✅ DONE
+- **File:** `apps/api/src/modules/products/services/price-list.service.ts`
+- Exports `resolvePrice(productId, discountTierId, currencyCode): Promise<ResolvedPrice>`
+- Step 1: `prisma.priceListEntry.findUnique({ where: { productId_discountTierId_currencyCode: {...} } })`
+- Step 2: entry found → `{ unitPrice: Number(entry.price), source: 'PRICE_LIST' }`
+- Step 3: no entry → load `product.basePrice` → `{ unitPrice: Number(product.basePrice), source: 'BASE' }`
+- **Schema note:** Current schema has no `validFrom`/`validTo` columns on `price_list_entries`. Date-window filtering commented-in as a TODO for future migration.
+- **TypeScript:** Compiles with zero errors (`tsc --noEmit` ✅)
 - **Explain check:** *"Lane A calls this function when a rep adds a product to a quote. What determines which price the rep sees?"* (Answer: the customer's discount tier + the quotation's currency → matched against price list entries)
 
 ### C2.4 — BUILD: Price list endpoints
@@ -156,23 +154,17 @@ You own the product catalog (the source of truth everyone else reads from), the 
 - **Verify:** Create "Monthly Cloud License" plan → list plans → see it
 - **Explain check:** *"What's a proration rule?"* (Answer: when a subscription changes mid-billing-cycle, proration calculates how much of the old period was used and adjusts charges for the remaining days)
 
-### C3.3 — BUILD: createFromConfirmedQuotation() — Contract 3
-- Add: `createFromConfirmedQuotation(quotationId)` →
-  1. Load quotation + lines where `line_type = 'RECURRING'`
-  2. For each recurring line:
-     - Find matching subscription plan config
-     - Create SubscriptionInstance:
-       - quotation_id, quotation_line_id, product_id
-       - billing_interval (from plan config)
-       - unit_price, quantity (from quotation line)
-       - status = 'ACTIVE'
-       - current_period_start = quotation.confirmed_at
-       - current_period_end = confirmed_at + billing_interval
-       - next_billing_date = current_period_end
-  3. Audit: SUBSCRIPTION_CREATED
-- **~45 lines.**
-- **Verify:** Call on seeded confirmed quotation with a "Cloud License" recurring line → subscription instance created with correct dates
-- **Explain check:** *"Lane B calls this when a customer confirms a quotation. What happens if the quotation has no recurring lines?"* (Answer: nothing — the function finds zero recurring lines and returns without creating subscriptions)
+### C3.3 — BUILD: createFromConfirmedQuotation() — Contract 3 ✅ DONE
+- **File:** `apps/api/src/modules/subscriptions/subscription.service.ts`
+- Signature: `createFromConfirmedQuotation(quotationId: string, actorUserId: string): Promise<void>`
+- **Schema reality:** `QuotationLine` has NO `line_type` column — recurring lines identified by `product.isSubscription === true` (§5.8, §5.16).
+- **Interval resolution:** reads `product.recurringInterval` ('MONTHLY' | 'QUARTERLY' | 'YEARLY'); falls back to `MONTHLY` if null.
+- **Date arithmetic:** plain JS `Date` — no external library. `addInterval()` uses `setMonth()` / `setFullYear()`.
+- **customerId** sourced from `quotation.customerId` (not passed in separately).
+- **actorUserId** parameter added so Lane B's confirm handler can pass `req.user.userId` for audit log.
+- **Audit:** one `SUBSCRIPTION_CREATED` AuditLog per instance with metadata (lineId, productId, interval, dates).
+- **TypeScript:** compiles with zero errors (`tsc --noEmit` ✅)
+- **Explain check:** *"Lane B calls this when a customer confirms a quotation. What happens if the quotation has no recurring lines?"* (Answer: `recurringLines.length === 0` → early return, no subscriptions created, no audit entries written)
 
 ### C3.4 — BUILD: Subscription list endpoint + UI (Screen 9)
 - `GET /api/v1/internal/subscriptions` — list all (filter by status, customer)

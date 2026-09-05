@@ -19,16 +19,16 @@ import FulfillmentDetailPage from './features/fulfillment/FulfillmentDetailPage'
 import PortalQuotationListPage from './features/portal/PortalQuotationListPage';
 import PortalQuotationDetailPage from './features/portal/PortalQuotationDetailPage';
 
-// ── Placeholder — replaced by each lane's real pages ──────────────────────────
-function Placeholder({ name }: { name: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-gray-500">
-      <div className="text-4xl mb-4">🚧</div>
-      <p className="font-mono text-lg">{name}</p>
-      <p className="text-sm mt-1 text-gray-600">Under construction — check the lane plan</p>
-    </div>
-  );
-}
+// Lane C Pages
+import ProductDashboardPage from './features/admin/products/ProductDashboardPage';
+import ProductDetailPage from './features/admin/products/ProductDetailPage';
+import SubscriptionListPage from './features/subscriptions/SubscriptionListPage';
+import SubscriptionDetailPage from './features/subscriptions/SubscriptionDetailPage';
+import BillingDetailPage from './features/billing/BillingDetailPage';
+import InvoiceListPage from './features/invoices/InvoiceListPage';
+import InvoiceDetailPage from './features/invoices/InvoiceDetailPage';
+import DealHealthDashboardPage from './features/deal-health/DealHealthDashboardPage';
+import ReportingPage from './features/reporting/ReportingPage';
 
 const INTERNAL_ROLES = ['ADMIN', 'SALES_REP', 'MANAGER', 'FINANCE_OPS'] as const;
 
@@ -63,11 +63,15 @@ export default function App() {
               <Route path="/app/fulfillment/:id" element={<FulfillmentDetailPage />} />
 
               {/* Lane C */}
-              <Route path="/app/products/*"      element={<Placeholder name="Products (Lane C)" />} />
-              <Route path="/app/subscriptions/*" element={<Placeholder name="Subscriptions (Lane C)" />} />
-              <Route path="/app/invoices/*"      element={<Placeholder name="Invoices (Lane C)" />} />
-              <Route path="/app/deal-health"     element={<Placeholder name="Deal Health (Lane C)" />} />
-              <Route path="/app/reporting"       element={<Placeholder name="Reporting (Lane C)" />} />
+              <Route path="/app/products"            element={<ProductDashboardPage />} />
+              <Route path="/app/products/:id"        element={<ProductDetailPage />} />
+              <Route path="/app/subscriptions"       element={<SubscriptionListPage />} />
+              <Route path="/app/subscriptions/:id"   element={<SubscriptionDetailPage />} />
+              <Route path="/app/billing/:quotationId" element={<BillingDetailPage />} />
+              <Route path="/app/invoices"            element={<InvoiceListPage />} />
+              <Route path="/app/invoices/:id"        element={<InvoiceDetailPage />} />
+              <Route path="/app/deal-health"         element={<DealHealthDashboardPage />} />
+              <Route path="/app/reporting"           element={<ReportingPage />} />
             </Route>
           </Route>
 
