@@ -26,8 +26,8 @@ export interface AuthUser {
 export interface SignupPayload {
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   role: UserRole;
   customerId?: string;
   companyName?: string;

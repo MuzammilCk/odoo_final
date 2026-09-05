@@ -65,9 +65,9 @@ export async function listPublicCustomers(): Promise<Array<{ id: string; name: s
 export async function signup(
   email: string,
   password: string,
-  firstName: string,
-  lastName: string,
-  role: UserRole,
+  firstName?: string,
+  lastName?: string,
+  role: UserRole = UserRole.SALES_REP,
   customerId?: string,
   companyName?: string,
 ): Promise<{ user: SafeUser; token: string }> {
@@ -122,9 +122,24 @@ export async function signup(
     }
   }
 
+  // Derive sensible names if omitted in form
+  const emailPrefix = email.split('@')[0] || 'User';
+  const resolvedFirstName =
+    firstName?.trim() ||
+    (role === UserRole.CUSTOMER ? companyName?.trim() || 'Company' : emailPrefix);
+  const resolvedLastName =
+    lastName?.trim() || (role === UserRole.CUSTOMER ? 'Account' : 'Representative');
+
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const user = await prisma.user.create({
-    data: { email, passwordHash, role, firstName, lastName, customerId: finalCustomerId },
+    data: {
+      email,
+      passwordHash,
+      role,
+      firstName: resolvedFirstName,
+      lastName: resolvedLastName,
+      customerId: finalCustomerId,
+    },
   });
 
   const token = signToken({ userId: user.id, role: user.role, email: user.email, customerId: user.customerId });

@@ -18,8 +18,8 @@ export const authRouter = Router();
 const signupSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   role: z.enum(['ADMIN', 'SALES_REP', 'MANAGER', 'FINANCE_OPS', 'CUSTOMER']),
   customerId: z.string().uuid().optional(),
   companyName: z.string().optional(),
