@@ -55,8 +55,8 @@ interface QuotationDetail {
   currentVersion: number;
   status: string;
   currencyCode: string;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
-  blendedRiskScore: number | string;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | string | null;
+  blendedRiskScore?: number | string | null;
   subtotal: number | string;
   discountTotal: number | string;
   taxTotal: number | string;
@@ -142,7 +142,18 @@ export default function QuotationDetailPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setRecommendations(data.recommendations || []);
+        const rawRecs = data.recommendations || [];
+        const mapped: RecommendationItem[] = rawRecs.map((r: any) => ({
+          productId: r.product?.id || r.productId,
+          productName: r.product?.name || r.productName || 'Recommended Product',
+          unitPrice: Number(r.product?.basePrice ?? r.unitPrice ?? 0),
+          score: Number(r.recommendationScore ?? r.score ?? 0),
+          marginDeltaPercent: Number(r.marginDelta ?? r.marginDeltaPercent ?? 0),
+          reason: r.isPromoted
+            ? 'High-margin strategic recommendation'
+            : (r.coPurchaseScore > 0 ? 'Frequently co-purchased with current items' : 'Catalog addition opportunity'),
+        }));
+        setRecommendations(mapped);
       }
     } catch (err) {
       console.error('Failed to load recommendations', err);
@@ -343,7 +354,7 @@ export default function QuotationDetailPage() {
     }
   };
 
-  const getRiskColor = (risk: string) => {
+  const getRiskColor = (risk?: string | null) => {
     switch (risk) {
       case 'LOW':
         return {
@@ -492,12 +503,12 @@ export default function QuotationDetailPage() {
           <div className="flex items-start sm:items-center gap-3.5">
             <div className={`p-2 rounded-xl border flex items-center gap-2 font-mono font-bold text-xs ${riskInfo.badge}`}>
               <RiskIcon size={16} />
-              <span>{quotation.riskLevel} RISK</span>
+              <span>{quotation.riskLevel || 'LOW'} RISK</span>
             </div>
             <div>
               <p className="text-xs font-semibold text-white flex items-center gap-2">
                 <span>Blended Risk Score:</span>
-                <span className="font-mono text-brand-400 text-sm font-bold">{Number(quotation.blendedRiskScore).toFixed(1)}</span>
+                <span className="font-mono text-brand-400 text-sm font-bold">{Number(quotation.blendedRiskScore ?? 0).toFixed(1)}</span>
               </p>
               <p className="text-xs text-slate-400 mt-0.5">{riskInfo.text}</p>
             </div>
@@ -721,9 +732,9 @@ export default function QuotationDetailPage() {
                       </div>
                       <p className="text-xs text-slate-400 mt-1">{rec.reason}</p>
                       <div className="flex items-center gap-3 mt-2.5 text-xs font-mono">
-                        <span className="text-white font-semibold">${rec.unitPrice.toFixed(2)}</span>
-                        {rec.marginDeltaPercent > 0 && (
-                          <span className="text-deal-400 font-medium">+{rec.marginDeltaPercent}% Margin</span>
+                        <span className="text-white font-semibold">${Number(rec.unitPrice || 0).toFixed(2)}</span>
+                        {Number(rec.marginDeltaPercent || 0) > 0 && (
+                          <span className="text-deal-400 font-medium">+{Number(rec.marginDeltaPercent || 0)}% Margin</span>
                         )}
                       </div>
                     </div>
