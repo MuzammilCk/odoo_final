@@ -120,28 +120,28 @@
 ### Step B1 — Portal Auth + Shell
 | # | Type | Task | Status |
 |---|---|---|---|
-| B1.1 | LEARN | Read §8.21 — portal isolation rules | [ ] |
-| B1.2 | BUILD | Portal middleware (role check + ownership check) | [ ] |
-| B1.3 | BUILD | Portal routes + controller shell | [ ] |
+| B1.1 | LEARN | Read §8.21 — portal isolation rules | [x] |
+| B1.2 | BUILD | Portal middleware (role check + ownership check) | [x] |
+| B1.3 | BUILD | Portal routes + controller shell | [x] |
 | B1.4 | BUILD | Portal frontend shell (scaffolded in F4 — `PortalLayout.tsx`) | [x] |
 
 ### Step B2 — Portal Quotation View
 | # | Type | Task | Status |
 |---|---|---|---|
-| B2.1 | BUILD | Portal quotation list endpoint (customer-only) | [ ] |
-| B2.2 | BUILD | Portal quotation detail endpoint (filtered fields) | [ ] |
+| B2.1 | BUILD | Portal quotation list endpoint (customer-only) | [x] |
+| B2.2 | BUILD | Portal quotation detail endpoint (filtered fields) | [x] |
 | B2.3 | BUILD | Portal quotation list UI | [ ] |
 | B2.4 | BUILD | Portal quotation detail UI (no margin/cost) | [ ] |
 
 ### Step B3 — Negotiation Engine
 | # | Type | Task | Status |
 |---|---|---|---|
-| B3.1 | LEARN | Read §6.21, UC-12, UC-13 — negotiation flow | [ ] |
-| B3.2 | BUILD | Negotiation request service (create request) | [ ] |
+| B3.1 | LEARN | Read §6.21, UC-12, UC-13 — negotiation flow | [x] |
+| B3.2 | BUILD | Negotiation request service (create request) | [x] |
 | B3.3 | BUILD | Customer negotiation endpoint | [ ] |
 | B3.4 | BUILD | Internal negotiation view endpoint | [ ] |
-| B3.5 | BUILD | Sales rep response service (resolve, version++) | [ ] |
-| B3.6 | BUILD | Re-approval trigger (Contract 1 call / stub) | [ ] |
+| B3.5 | BUILD | Sales rep response service (resolve, version++) | [x] |
+| B3.6 | BUILD | Re-approval trigger (Contract 1 call / stub) | [x] |
 | B3.7 | BUILD | Sales rep response endpoint | [ ] |
 | B3.8 | BUILD | Negotiation UI — customer side | [ ] |
 | B3.9 | BUILD | Negotiation UI — internal side | [ ] |
@@ -157,13 +157,13 @@
 ### Step B5 — Warehouse Allocation
 | # | Type | Task | Status |
 |---|---|---|---|
-| B5.1 | LEARN | Read §6.28, §8.16 — row-level locking | [ ] |
-| B5.2 | LEARN | Read §6.2 rules 11–13 — available stock formula | [ ] |
+| B5.1 | LEARN | Read §6.28, §8.16 — row-level locking | [x] |
+| B5.2 | LEARN | Read §6.2 rules 11–13 — available stock formula | [x] |
 | B5.3 | BUILD | Available stock query service | [ ] |
 | B5.4 | BUILD | Warehouse ranking logic | [ ] |
 | B5.5 | BUILD | Greedy allocation algorithm (recommendation only) | [ ] |
 | B5.6 | BUILD | Allocation recommendation endpoint | [ ] |
-| B5.7 | BUILD | Transactional stock reservation (SELECT FOR UPDATE) | [ ] |
+| B5.7 | BUILD | Transactional stock reservation (SELECT FOR UPDATE) | [x] |
 | B5.8 | BUILD | Accept split endpoint | [ ] |
 | B5.9 | BUILD | Manual override endpoint | [ ] |
 | B5.10 | BUILD | Backorder creation (remaining qty) | [ ] |
