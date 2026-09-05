@@ -5,7 +5,18 @@ import AppLayout from './components/AppLayout';
 import PortalLayout from './components/PortalLayout';
 import LoginPage from './features/auth/LoginPage';
 
-// ── Placeholder — replaced by each lane's real pages ──────────────────────────
+// Lane C Feature Pages
+import ProductDashboardPage from './features/admin/products/ProductDashboardPage';
+import ProductDetailPage from './features/admin/products/ProductDetailPage';
+import SubscriptionListPage from './features/subscriptions/SubscriptionListPage';
+import SubscriptionDetailPage from './features/subscriptions/SubscriptionDetailPage';
+import BillingDetailPage from './features/billing/BillingDetailPage';
+import InvoiceListPage from './features/invoices/InvoiceListPage';
+import InvoiceDetailPage from './features/invoices/InvoiceDetailPage';
+import DealHealthDashboardPage from './features/deal-health/DealHealthDashboardPage';
+import ReportingPage from './features/reporting/ReportingPage';
+
+// ── Placeholder — for other lanes' pending screens ──────────────────────────
 function Placeholder({ name }: { name: string }) {
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-gray-500">
@@ -36,18 +47,25 @@ export default function App() {
             }
           >
             <Route element={<AppLayout />}>
+              {/* Lane A */}
               <Route path="/app/dashboard"    element={<Placeholder name="Dashboard (Lane A)" />} />
               <Route path="/app/quotations/*" element={<Placeholder name="Quotations (Lane A)" />} />
               <Route path="/app/approvals/*"  element={<Placeholder name="Approvals (Lane A)" />} />
               <Route path="/app/config"       element={<Placeholder name="Config (Lane A)" />} />
+              
               {/* Lane B */}
               <Route path="/app/fulfillment/*" element={<Placeholder name="Fulfillment (Lane B)" />} />
-              {/* Lane C */}
-              <Route path="/app/products/*"      element={<Placeholder name="Products (Lane C)" />} />
-              <Route path="/app/subscriptions/*" element={<Placeholder name="Subscriptions (Lane C)" />} />
-              <Route path="/app/invoices/*"      element={<Placeholder name="Invoices (Lane C)" />} />
-              <Route path="/app/deal-health"     element={<Placeholder name="Deal Health (Lane C)" />} />
-              <Route path="/app/reporting"       element={<Placeholder name="Reporting (Lane C)" />} />
+              
+              {/* Lane C — Complete */}
+              <Route path="/app/products"         element={<ProductDashboardPage />} />
+              <Route path="/app/products/:id"     element={<ProductDetailPage />} />
+              <Route path="/app/subscriptions"     element={<SubscriptionListPage />} />
+              <Route path="/app/subscriptions/:id" element={<SubscriptionDetailPage />} />
+              <Route path="/app/billing/:quotationId" element={<BillingDetailPage />} />
+              <Route path="/app/invoices"         element={<InvoiceListPage />} />
+              <Route path="/app/invoices/:id"     element={<InvoiceDetailPage />} />
+              <Route path="/app/deal-health"      element={<DealHealthDashboardPage />} />
+              <Route path="/app/reporting"        element={<ReportingPage />} />
             </Route>
           </Route>
 
