@@ -52,66 +52,66 @@
 ### Step A2 — Quotation CRUD
 | # | Type | Task | Status |
 |---|---|---|---|
-| A2.1 | LEARN | Read §6.6, §5 — quotation data model | [ ] |
-| A2.2 | BUILD | Create quotation service (status=DRAFT, version=1) | [ ] |
-| A2.3 | BUILD | Quotation endpoints (create, list, detail) | [ ] |
-| A2.4 | LEARN | Read §6.7–6.8, §6.24 — line pricing + total formulas | [ ] |
-| A2.5 | BUILD | Quotation calculator service (recalculate totals/margin) | [ ] |
-| A2.6 | BUILD | Add line endpoint (resolve price, calculate, recalculate) | [ ] |
-| A2.7 | BUILD | Edit + delete line endpoints | [ ] |
-| A2.8 | BUILD | Material edit → version increment (§6.4) | [ ] |
-| A2.9 | BUILD | Quotation List page UI (Screen 3) | [ ] |
-| A2.10 | BUILD | Quotation Detail page UI (Screen 4 — basic) | [ ] |
+| A2.1 | LEARN | Read §6.6, §5 — quotation data model | [x] |
+| A2.2 | BUILD | Create quotation service (status=DRAFT, version=1) | [x] |
+| A2.3 | BUILD | Quotation endpoints (create, list, detail) | [x] |
+| A2.4 | LEARN | Read §6.7–6.8, §6.24 — line pricing + total formulas | [x] |
+| A2.5 | BUILD | Quotation calculator service (recalculate totals/margin) | [x] |
+| A2.6 | BUILD | Add line endpoint (resolve price, calculate, recalculate) | [x] |
+| A2.7 | BUILD | Edit + delete line endpoints | [x] |
+| A2.8 | BUILD | Material edit → version increment (§6.4) | [x] |
+| A2.9 | BUILD | Quotation List page UI (Screen 3) | [x] |
+| A2.10 | BUILD | Quotation Detail page UI (Screen 4 — basic) | [x] |
 
 ### Step A3 — Discount Governance + Risk
 | # | Type | Task | Status |
 |---|---|---|---|
-| A3.1 | LEARN | Read §6.9–6.11 — effective ceiling + overage | [ ] |
-| A3.2 | BUILD | Effective ceiling calculation: MIN(tier, category) | [ ] |
-| A3.3 | BUILD | Line overage calculation: MAX(0, discount - ceiling) | [ ] |
-| A3.4 | BUILD | Blended risk score: SUM(overages) | [ ] |
-| A3.5 | BUILD | Risk level determination (LOW/MEDIUM/HIGH) | [ ] |
-| A3.6 | BUILD | evaluateAndRoute() — Contract 1 endpoint | [ ] |
-| A3.7 | BUILD | Risk badge + overage indicators on UI | [ ] |
+| A3.1 | LEARN | Read §6.9–6.11 — effective ceiling + overage | [x] |
+| A3.2 | BUILD | Effective ceiling calculation: MIN(tier, category) | [x] |
+| A3.3 | BUILD | Line overage calculation: MAX(0, discount - ceiling) | [x] |
+| A3.4 | BUILD | Blended risk score: SUM(overages) | [x] |
+| A3.5 | BUILD | Risk level determination (LOW/MEDIUM/HIGH) | [x] |
+| A3.6 | BUILD | evaluateAndRoute() — Contract 1 endpoint | [x] |
+| A3.7 | BUILD | Risk badge + overage indicators on UI | [x] |
 
 ### Step A4 — Approval Workflow
 | # | Type | Task | Status |
 |---|---|---|---|
-| A4.1 | LEARN | Read §6.14–6.18 — approval state machine | [ ] |
-| A4.2 | BUILD | ApprovalRequest + steps creation service | [ ] |
-| A4.3 | VERIFY | Test: create request for MEDIUM risk → 1 step | [ ] |
-| A4.4 | BUILD | Submit quotation endpoint (risk eval → approval) | [ ] |
-| A4.5 | BUILD | Approve step logic (single step) | [ ] |
-| A4.6 | BUILD | Reject step logic | [ ] |
-| A4.7 | BUILD | Return for revision logic | [ ] |
-| A4.8 | BUILD | Multi-step sequencing (Manager → Finance) | [ ] |
-| A4.9 | BUILD | Approval validity guard (version check) | [ ] |
-| A4.10 | BUILD | Approval decision endpoint | [ ] |
-| A4.11 | BUILD | Approvals list + detail endpoints | [ ] |
-| A4.12 | BUILD | Approval List page UI (Screen 5) | [ ] |
-| A4.13 | BUILD | Approval Detail page UI (Screen 6) | [ ] |
+| A4.1 | LEARN | Read §6.14–6.18 — approval state machine | [x] |
+| A4.2 | BUILD | ApprovalRequest + steps creation service | [x] |
+| A4.3 | VERIFY | Test: create request for MEDIUM risk → 1 step | [x] |
+| A4.4 | BUILD | Submit quotation endpoint (risk eval → approval) | [x] |
+| A4.5 | BUILD | Approve step logic (single step) | [x] |
+| A4.6 | BUILD | Reject step logic | [x] |
+| A4.7 | BUILD | Return for revision logic | [x] |
+| A4.8 | BUILD | Multi-step sequencing (Manager → Finance) | [x] |
+| A4.9 | BUILD | Approval validity guard (version check) | [x] |
+| A4.10 | BUILD | Approval decision endpoint | [x] |
+| A4.11 | BUILD | Approvals list + detail endpoints | [x] |
+| A4.12 | BUILD | Approval List page UI (Screen 5) | [x] |
+| A4.13 | BUILD | Approval Detail page UI (Screen 6) | [x] |
 
 ### Step A5 — Recommendations
 | # | Type | Task | Status |
 |---|---|---|---|
-| A5.1 | LEARN | Read §6.22–6.23 — recommendation rules | [ ] |
-| A5.2 | BUILD | Candidate filtering (exclude in-quote, below margin) | [ ] |
-| A5.3 | BUILD | Scoring + ranking (co-purchase + promo boost) | [ ] |
-| A5.4 | BUILD | Margin delta calculation | [ ] |
-| A5.5 | BUILD | Recommendation endpoint | [ ] |
-| A5.6 | BUILD | Upsell panel UI on quotation builder | [ ] |
+| A5.1 | LEARN | Read §6.22–6.23 — recommendation rules | [x] |
+| A5.2 | BUILD | Candidate filtering (exclude in-quote, below margin) | [x] |
+| A5.3 | BUILD | Scoring + ranking (co-purchase + promo boost) | [x] |
+| A5.4 | BUILD | Margin delta calculation | [x] |
+| A5.5 | BUILD | Recommendation endpoint | [x] |
+| A5.6 | BUILD | Upsell panel UI on quotation builder | [x] |
 
 ### Step A6 — Dashboard + Config
 | # | Type | Task | Status |
 |---|---|---|---|
-| A6.1 | BUILD | Dashboard aggregation endpoint | [ ] |
-| A6.2 | BUILD | Dashboard page UI (Screen 2) | [ ] |
-| A6.3 | BUILD | Discount tier CRUD endpoints | [ ] |
-| A6.4 | BUILD | Category ceiling CRUD endpoints | [ ] |
-| A6.5 | BUILD | Approval threshold config | [ ] |
-| A6.6 | BUILD | Config page UI (Screen 18) | [ ] |
+| A6.1 | BUILD | Dashboard aggregation endpoint | [x] |
+| A6.2 | BUILD | Dashboard page UI (Screen 2) | [x] |
+| A6.3 | BUILD | Discount tier CRUD endpoints | [x] |
+| A6.4 | BUILD | Category ceiling CRUD endpoints | [x] |
+| A6.5 | BUILD | Approval threshold config | [x] |
+| A6.6 | BUILD | Config page UI (Screen 18) | [x] |
 
-**Lane A total: 44 micro-steps**
+**Lane A total: 44 micro-steps — 100% COMPLETE ✅**
 
 ---
 

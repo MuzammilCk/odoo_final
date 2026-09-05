@@ -2,6 +2,10 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { authRouter } from './modules/auth/auth.controller.js';
+import { quotationRouter } from './modules/quotations/quotation.controller.js';
+import { approvalRouter } from './modules/approvals/approval.controller.js';
+import { dashboardRouter } from './modules/dashboard/dashboard.controller.js';
+import { configRouter } from './modules/discount-config/config.controller.js';
 
 const app = express();
 const PORT = process.env.API_PORT ?? 3001;
@@ -17,8 +21,11 @@ app.get('/api/v1/health', (_req, res) => {
 
 // ── Route modules ─────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/internal/quotations', quotationRouter);
+app.use('/api/v1/internal/approvals', approvalRouter);
+app.use('/api/v1/internal/dashboard', dashboardRouter);
+app.use('/api/v1/internal', configRouter);
 // Additional routes registered here as each feature is built (F4 → Lane A/B/C)
-// e.g. app.use('/api/v1/internal/quotations', quotationRouter);
 // e.g. app.use('/api/v1/portal', portalRouter);
 
 // ── 404 fallback ───────────────────────────────────────────────────────────────
