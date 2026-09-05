@@ -18,8 +18,8 @@ import { Decimal } from '@prisma/client/runtime/library';
 const ZERO = new Decimal(0);
 const HUNDRED = new Decimal(100);
 
-export async function recalculateQuotation(quotationId: string): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+export async function recalculateQuotation(quotationId: string) {
+  return await prisma.$transaction(async (tx) => {
     // 1. Load all lines with their product's tax_rate
     const lines = await tx.quotationLine.findMany({
       where: { quotationId },
@@ -76,7 +76,7 @@ export async function recalculateQuotation(quotationId: string): Promise<void> {
       ? sumMarginAmount.div(grandTotal).mul(HUNDRED)
       : ZERO;
 
-    await tx.quotation.update({
+    return await tx.quotation.update({
       where: { id: quotationId },
       data: {
         subtotal: sumNetLineValue,
@@ -89,3 +89,7 @@ export async function recalculateQuotation(quotationId: string): Promise<void> {
     });
   });
 }
+
+export const QuotationCalculatorService = {
+  recalculateQuotation,
+};

@@ -4,12 +4,20 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 import PortalLayout from './components/PortalLayout';
 import LoginPage from './features/auth/LoginPage';
+
+// Lane A Pages
 import DashboardPage from './features/dashboard/DashboardPage';
 import QuotationListPage from './features/quotations/QuotationListPage';
 import QuotationDetailPage from './features/quotations/QuotationDetailPage';
 import ApprovalListPage from './features/approvals/ApprovalListPage';
 import ApprovalDetailPage from './features/approvals/ApprovalDetailPage';
 import DiscountConfigPage from './features/admin/discount-config/DiscountConfigPage';
+
+// Lane B Pages
+import FulfillmentListPage from './features/fulfillment/FulfillmentListPage';
+import FulfillmentDetailPage from './features/fulfillment/FulfillmentDetailPage';
+import PortalQuotationListPage from './features/portal/PortalQuotationListPage';
+import PortalQuotationDetailPage from './features/portal/PortalQuotationDetailPage';
 
 // ── Placeholder — replaced by each lane's real pages ──────────────────────────
 function Placeholder({ name }: { name: string }) {
@@ -42,14 +50,18 @@ export default function App() {
             }
           >
             <Route element={<AppLayout />}>
+              {/* Lane A */}
               <Route path="/app/dashboard" element={<DashboardPage />} />
               <Route path="/app/quotations" element={<QuotationListPage />} />
               <Route path="/app/quotations/:id" element={<QuotationDetailPage />} />
               <Route path="/app/approvals" element={<ApprovalListPage />} />
               <Route path="/app/approvals/:id" element={<ApprovalDetailPage />} />
               <Route path="/app/config" element={<DiscountConfigPage />} />
+
               {/* Lane B */}
-              <Route path="/app/fulfillment/*" element={<Placeholder name="Fulfillment (Lane B)" />} />
+              <Route path="/app/fulfillment"     element={<FulfillmentListPage />} />
+              <Route path="/app/fulfillment/:id" element={<FulfillmentDetailPage />} />
+
               {/* Lane C */}
               <Route path="/app/products/*"      element={<Placeholder name="Products (Lane C)" />} />
               <Route path="/app/subscriptions/*" element={<Placeholder name="Subscriptions (Lane C)" />} />
@@ -69,7 +81,8 @@ export default function App() {
             }
           >
             <Route element={<PortalLayout />}>
-              <Route path="/portal/quotations/*" element={<Placeholder name="My Quotations (Lane B)" />} />
+              <Route path="/portal/quotations"     element={<PortalQuotationListPage />} />
+              <Route path="/portal/quotations/:id" element={<PortalQuotationDetailPage />} />
             </Route>
           </Route>
 
