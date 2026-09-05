@@ -173,3 +173,130 @@ export async function reserveStock(
     };
   });
 }
+
+export interface WarehouseStockCandidate {
+  warehouseId: string;
+  warehouseName: string;
+  shippingCostWeight: number;
+  quantityOnHand: number;
+  quantityReserved: number;
+  available: number;
+}
+
+/**
+ * Queries real-time available stock across all active warehouses for a given product.
+ * Formula: available = quantity_on_hand - quantity_reserved (§6.2 rule 11)
+ */
+export async function getAvailableStock(productId: string): Promise<WarehouseStockCandidate[]> {
+  const warehouses = await prisma.warehouse.findMany({
+    where: { isActive: true },
+    include: {
+      stockLevels: {
+        where: { productId },
+      },
+    },
+  });
+
+  return warehouses.map((w) => {
+    const stock = w.stockLevels[0];
+    const onHand = stock ? Number(stock.quantityOnHand) : 0;
+    const reserved = stock ? Number(stock.quantityReserved) : 0;
+    const available = Math.max(0, onHand - reserved);
+
+    return {
+      warehouseId: w.id,
+      warehouseName: w.name,
+      shippingCostWeight: Number(w.shippingCostWeight),
+      quantityOnHand: onHand,
+      quantityReserved: reserved,
+      available,
+    };
+  });
+}
+
+/**
+ * Ranks warehouses for allocation suitability (§6.27):
+ * 1. Prioritize warehouses that can fulfill the full required quantity (minimizes shipment fragmentation).
+ * 2. Prioritize lowest shipping_cost_weight.
+ * 3. Tie-breaker: largest available stock.
+ */
+export function rankWarehouses(
+  candidates: WarehouseStockCandidate[],
+  requiredQuantity: number
+): WarehouseStockCandidate[] {
+  return [...candidates].sort((a, b) => {
+    const aCanFulfill = a.available >= requiredQuantity ? 1 : 0;
+    const bCanFulfill = b.available >= requiredQuantity ? 1 : 0;
+
+    // Rule 1: Single warehouse fulfillment preference
+    if (aCanFulfill !== bCanFulfill) {
+      return bCanFulfill - aCanFulfill;
+    }
+
+    // Rule 2: Lowest shipping cost weight
+    if (a.shippingCostWeight !== b.shippingCostWeight) {
+      return a.shippingCostWeight - b.shippingCostWeight;
+    }
+
+    // Rule 3: Available quantity tie-breaker
+    return b.available - a.available;
+  });
+}
+
+/**
+ * Releases reserved inventory when an allocation is cancelled before dispatch (§6.29).
+ */
+export async function releaseReservation(allocationId: string, userId?: string) {
+  return await prisma.$transaction(async (tx) => {
+    const allocation = await tx.fulfillmentAllocation.findUnique({
+      where: { id: allocationId },
+      include: { quotationLine: true },
+    });
+
+    if (!allocation) {
+      throw new Error(`Allocation ${allocationId} not found`);
+    }
+
+    const qty = Number(allocation.quantityAllocated);
+
+    // Decrement reserved quantity
+    await tx.stockLevel.update({
+      where: {
+        warehouseId_productId: {
+          warehouseId: allocation.warehouseId,
+          productId: allocation.quotationLine.productId,
+        },
+      },
+      data: {
+        quantityReserved: { decrement: qty },
+      },
+    });
+
+    // Remove the fulfillment allocation
+    await tx.fulfillmentAllocation.delete({
+      where: { id: allocationId },
+    });
+
+    // Audit log
+    if (userId) {
+      await tx.auditLog.create({
+        data: {
+          actorUserId: userId,
+          action: AuditAction.WAREHOUSE_UPDATED,
+          entityType: 'fulfillment_allocation',
+          entityId: allocationId,
+          quotationId: allocation.quotationId,
+          metadata: {
+            action: 'RESERVATION_RELEASED',
+            warehouseId: allocation.warehouseId,
+            productId: allocation.quotationLine.productId,
+            releasedQuantity: qty,
+          },
+        },
+      });
+    }
+
+    return { success: true, releasedQuantity: qty };
+  });
+}
+

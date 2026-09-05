@@ -4,6 +4,10 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 import PortalLayout from './components/PortalLayout';
 import LoginPage from './features/auth/LoginPage';
+import FulfillmentListPage from './features/fulfillment/FulfillmentListPage';
+import FulfillmentDetailPage from './features/fulfillment/FulfillmentDetailPage';
+import PortalQuotationListPage from './features/portal/PortalQuotationListPage';
+import PortalQuotationDetailPage from './features/portal/PortalQuotationDetailPage';
 
 // ── Placeholder — replaced by each lane's real pages ──────────────────────────
 function Placeholder({ name }: { name: string }) {
@@ -41,7 +45,8 @@ export default function App() {
               <Route path="/app/approvals/*"  element={<Placeholder name="Approvals (Lane A)" />} />
               <Route path="/app/config"       element={<Placeholder name="Config (Lane A)" />} />
               {/* Lane B */}
-              <Route path="/app/fulfillment/*" element={<Placeholder name="Fulfillment (Lane B)" />} />
+              <Route path="/app/fulfillment"     element={<FulfillmentListPage />} />
+              <Route path="/app/fulfillment/:id" element={<FulfillmentDetailPage />} />
               {/* Lane C */}
               <Route path="/app/products/*"      element={<Placeholder name="Products (Lane C)" />} />
               <Route path="/app/subscriptions/*" element={<Placeholder name="Subscriptions (Lane C)" />} />
@@ -61,7 +66,8 @@ export default function App() {
             }
           >
             <Route element={<PortalLayout />}>
-              <Route path="/portal/quotations/*" element={<Placeholder name="My Quotations (Lane B)" />} />
+              <Route path="/portal/quotations"     element={<PortalQuotationListPage />} />
+              <Route path="/portal/quotations/:id" element={<PortalQuotationDetailPage />} />
             </Route>
           </Route>
 

@@ -16,6 +16,8 @@ import { prisma } from '../../lib/prisma.js';
 import { QuotationStatus } from '@prisma/client';
 import { authenticateToken } from '../auth/auth.middleware.js';
 import { requirePortalAccess, requireQuotationOwnership } from './portal.middleware.js';
+import { createNegotiationRequest } from '../negotiations/negotiation.service.js';
+import { confirmQuotation } from './portal.service.js';
 
 export const portalRouter = Router();
 
@@ -199,3 +201,139 @@ portalRouter.get(
     }
   }
 );
+
+/**
+ * 3. POST /api/v1/portal/quotations/:id/negotiate
+ * Submits a customer negotiation request (COMMENT, CHANGE_REQUEST, COUNTER_DISCOUNT, DELIVERY_DATE).
+ */
+portalRouter.post(
+  '/quotations/:id/negotiate',
+  authenticateToken,
+  requirePortalAccess,
+  requireQuotationOwnership,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = req.params.id as string;
+      const user = req.user!;
+      const customerId = user.customerId ?? req.quotation?.customerId;
+
+      if (!customerId) {
+        res.status(403).json({ error: 'No customer organization found' });
+        return;
+      }
+
+      const { type, lineId, content, message, proposedDiscount, requestedDeliveryDate } = req.body;
+
+      if (!type || (!content && !message)) {
+        res.status(400).json({ error: 'Request type and content/message are required' });
+        return;
+      }
+
+      const requestItem = await createNegotiationRequest(
+        id,
+        customerId,
+        {
+          type,
+          lineId,
+          content: content ?? message,
+          proposedDiscount: proposedDiscount !== undefined ? Number(proposedDiscount) : undefined,
+          requestedDeliveryDate: requestedDeliveryDate ? new Date(requestedDeliveryDate) : undefined,
+        },
+        user.userId
+      );
+
+      res.status(201).json(requestItem);
+    } catch (error: any) {
+      console.error('[portal/negotiate] Error submitting negotiation:', error);
+      res.status(400).json({ error: error.message ?? 'Failed to submit negotiation' });
+    }
+  }
+);
+
+/**
+ * 4. GET /api/v1/portal/quotations/:id/negotiations
+ * Retrieves all negotiation requests for this quotation (customer-facing view).
+ */
+portalRouter.get(
+  '/quotations/:id/negotiations',
+  authenticateToken,
+  requirePortalAccess,
+  requireQuotationOwnership,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = req.params.id as string;
+
+      const negotiations = await prisma.negotiationRequest.findMany({
+        where: { quotationId: id },
+        select: {
+          id: true,
+          quotationId: true,
+          quotationLineId: true,
+          negotiationType: true,
+          message: true,
+          requestedDiscountPercent: true,
+          requestedDeliveryDate: true,
+          status: true,
+          resolvedAt: true,
+          createdAt: true,
+          quotationLine: {
+            select: {
+              id: true,
+              descriptionSnapshot: true,
+              unitPrice: true,
+              discountPercent: true,
+              product: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      res.json(negotiations);
+    } catch (error) {
+      console.error('[portal/negotiations] Error listing negotiations:', error);
+      res.status(500).json({ error: 'Failed to retrieve negotiations' });
+    }
+  }
+);
+
+/**
+ * 5. POST /api/v1/portal/quotations/:id/confirm
+ * Customer confirms the quotation terms, locking it and transitioning status to CONFIRMED.
+ */
+portalRouter.post(
+  '/quotations/:id/confirm',
+  authenticateToken,
+  requirePortalAccess,
+  requireQuotationOwnership,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = req.params.id as string;
+      const user = req.user!;
+      const customerId = user.customerId ?? req.quotation?.customerId;
+
+      if (!customerId) {
+        res.status(403).json({ error: 'No customer organization found' });
+        return;
+      }
+
+      const confirmedQuote = await confirmQuotation(id, customerId, user.userId);
+      res.json({
+        success: true,
+        message: 'Quotation confirmed successfully',
+        quotation: {
+          id: confirmedQuote.id,
+          quoteNumber: confirmedQuote.quoteNumber,
+          status: confirmedQuote.status,
+          confirmedAt: confirmedQuote.confirmedAt,
+        },
+      });
+    } catch (error: any) {
+      console.error('[portal/confirm] Error confirming quotation:', error);
+      res.status(400).json({ error: error.message ?? 'Failed to confirm quotation' });
+    }
+  }
+);
+

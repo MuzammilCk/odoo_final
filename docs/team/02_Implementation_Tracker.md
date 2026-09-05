@@ -130,61 +130,61 @@
 |---|---|---|---|
 | B2.1 | BUILD | Portal quotation list endpoint (customer-only) | [x] |
 | B2.2 | BUILD | Portal quotation detail endpoint (filtered fields) | [x] |
-| B2.3 | BUILD | Portal quotation list UI | [ ] |
-| B2.4 | BUILD | Portal quotation detail UI (no margin/cost) | [ ] |
+| B2.3 | BUILD | Portal quotation list UI | [x] |
+| B2.4 | BUILD | Portal quotation detail UI (no margin/cost) | [x] |
 
 ### Step B3 — Negotiation Engine
 | # | Type | Task | Status |
 |---|---|---|---|
 | B3.1 | LEARN | Read §6.21, UC-12, UC-13 — negotiation flow | [x] |
 | B3.2 | BUILD | Negotiation request service (create request) | [x] |
-| B3.3 | BUILD | Customer negotiation endpoint | [ ] |
-| B3.4 | BUILD | Internal negotiation view endpoint | [ ] |
+| B3.3 | BUILD | Customer negotiation endpoint | [x] |
+| B3.4 | BUILD | Internal negotiation view endpoint | [x] |
 | B3.5 | BUILD | Sales rep response service (resolve, version++) | [x] |
 | B3.6 | BUILD | Re-approval trigger (Contract 1 call / stub) | [x] |
-| B3.7 | BUILD | Sales rep response endpoint | [ ] |
-| B3.8 | BUILD | Negotiation UI — customer side | [ ] |
-| B3.9 | BUILD | Negotiation UI — internal side | [ ] |
+| B3.7 | BUILD | Sales rep response endpoint | [x] |
+| B3.8 | BUILD | Negotiation UI — customer side | [x] |
+| B3.9 | BUILD | Negotiation UI — internal side | [x] |
 
 ### Step B4 — Confirmation
 | # | Type | Task | Status |
 |---|---|---|---|
-| B4.1 | LEARN | Read §6.20, §6.18 — confirmation rules | [ ] |
-| B4.2 | BUILD | Confirmation validation service (5 preconditions) | [ ] |
-| B4.3 | BUILD | Confirm endpoint (+ Contract 3 TODO) | [ ] |
-| B4.4 | BUILD | Confirm button UI | [ ] |
+| B4.1 | LEARN | Read §6.20, §6.18 — confirmation rules | [x] |
+| B4.2 | BUILD | Confirmation validation service (5 preconditions) | [x] |
+| B4.3 | BUILD | Confirm endpoint (+ Contract 3 TODO) | [x] |
+| B4.4 | BUILD | Confirm button UI | [x] |
 
 ### Step B5 — Warehouse Allocation
 | # | Type | Task | Status |
 |---|---|---|---|
 | B5.1 | LEARN | Read §6.28, §8.16 — row-level locking | [x] |
 | B5.2 | LEARN | Read §6.2 rules 11–13 — available stock formula | [x] |
-| B5.3 | BUILD | Available stock query service | [ ] |
-| B5.4 | BUILD | Warehouse ranking logic | [ ] |
-| B5.5 | BUILD | Greedy allocation algorithm (recommendation only) | [ ] |
-| B5.6 | BUILD | Allocation recommendation endpoint | [ ] |
+| B5.3 | BUILD | Available stock query service | [x] |
+| B5.4 | BUILD | Warehouse ranking logic | [x] |
+| B5.5 | BUILD | Greedy allocation algorithm (recommendation only) | [x] |
+| B5.6 | BUILD | Allocation recommendation endpoint | [x] |
 | B5.7 | BUILD | Transactional stock reservation (SELECT FOR UPDATE) | [x] |
-| B5.8 | BUILD | Accept split endpoint | [ ] |
-| B5.9 | BUILD | Manual override endpoint | [ ] |
-| B5.10 | BUILD | Backorder creation (remaining qty) | [ ] |
-| B5.11 | BUILD | Fulfillment list endpoint | [ ] |
-| B5.12 | BUILD | Fulfillment List UI (Screen 7) | [ ] |
-| B5.13 | BUILD | Fulfillment Detail UI (Screen 8) | [ ] |
+| B5.8 | BUILD | Accept split endpoint | [x] |
+| B5.9 | BUILD | Manual override endpoint | [x] |
+| B5.10 | BUILD | Backorder creation (remaining qty) | [x] |
+| B5.11 | BUILD | Fulfillment list endpoint | [x] |
+| B5.12 | BUILD | Fulfillment List UI (Screen 7) | [x] |
+| B5.13 | BUILD | Fulfillment Detail UI (Screen 8) | [x] |
 
 ### Step B6 — Backorder + Inventory
 | # | Type | Task | Status |
 |---|---|---|---|
-| B6.1 | LEARN | Read §6.32 — backorder consolidation | [ ] |
-| B6.2 | BUILD | Backorder list + consolidation endpoint | [ ] |
-| B6.3 | BUILD | Inventory release (cancel allocation) | [ ] |
-| B6.4 | BUILD | Warehouse management endpoints | [ ] |
+| B6.1 | LEARN | Read §6.32 — backorder consolidation | [x] |
+| B6.2 | BUILD | Backorder list + consolidation endpoint | [x] |
+| B6.3 | BUILD | Inventory release (cancel allocation) | [x] |
+| B6.4 | BUILD | Warehouse management endpoints | [x] |
 
 ### Concurrency Test
 | # | Type | Task | Status |
 |---|---|---|---|
-| B-TEST | VERIFY | Two concurrent allocations don't over-reserve | [ ] |
+| B-TEST | VERIFY | Two concurrent allocations don't over-reserve | [x] |
 
-**Lane B total: 35 micro-steps**
+**Lane B total: 35 micro-steps — ALL COMPLETE ✅**
 
 ---
 
