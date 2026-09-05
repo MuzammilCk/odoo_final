@@ -4,14 +4,14 @@
  * Spec refs: §8.17 (Email+Password auth), §8.21 (portal isolation),
  *            Section A1 (authentication/signup for internal reps & portal customers)
  *
- * Rule: Only one account is permitted per company organization.
+ * Rule: Only one account is permitted per company organization (Customer).
+ *       Sales Rep accounts include first name, last name, and work email.
  */
 
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
-  User,
   Mail,
   Lock,
   Building2,
@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Loader2,
   Sparkles,
+  User,
 } from 'lucide-react';
 
 type SignupRole = 'SALES_REP' | 'CUSTOMER';
@@ -28,11 +29,17 @@ export default function SignupPage() {
   const { signup, user } = useAuth();
 
   const [role, setRole] = useState<SignupRole>('SALES_REP');
+
+  // Shared fields
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  // Sales Rep only
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
+
+  // Customer only
   const [companyName, setCompanyName] = useState('');
-  const [password, setPassword] = useState('');
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,6 +54,11 @@ export default function SignupPage() {
     );
   }
 
+  function handleRoleSwitch(newRole: SignupRole) {
+    setRole(newRole);
+    setError('');
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
@@ -54,6 +66,17 @@ export default function SignupPage() {
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
+    }
+
+    if (role === 'SALES_REP') {
+      if (!firstName.trim()) {
+        setError('Please enter your first name');
+        return;
+      }
+      if (!lastName.trim()) {
+        setError('Please enter your last name');
+        return;
+      }
     }
 
     if (role === 'CUSTOMER' && !companyName.trim()) {
@@ -66,9 +89,9 @@ export default function SignupPage() {
       await signup({
         email: email.trim(),
         password,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
         role,
+        firstName: role === 'SALES_REP' ? firstName.trim() : undefined,
+        lastName: role === 'SALES_REP' ? lastName.trim() : undefined,
         companyName: role === 'CUSTOMER' ? companyName.trim() : undefined,
       });
     } catch (err) {
@@ -126,20 +149,21 @@ export default function SignupPage() {
           )}
 
           <form id="signup-form" onSubmit={handleSubmit} className="space-y-4">
-            {/* Role Selection Tabs / Dropdown */}
+            {/* ── Role Selection Buttons ── */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wider">
                 Select Account Role <span className="text-brand-400">*</span>
               </label>
 
-              {/* Role Cards */}
-              <div className="grid grid-cols-2 gap-3 mb-2">
+              <div className="grid grid-cols-2 gap-3">
+                {/* Sales Rep */}
                 <button
                   type="button"
-                  onClick={() => setRole('SALES_REP')}
+                  id="role-sales-rep"
+                  onClick={() => handleRoleSwitch('SALES_REP')}
                   className={`p-3.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
                     role === 'SALES_REP'
-                      ? 'bg-brand-600/15 border-brand-500/50 text-white shadow-sm shadow-brand-500/20'
+                      ? 'bg-brand-600/15 border-brand-500/50 text-white shadow-sm shadow-brand-500/20 ring-1 ring-brand-500/30'
                       : 'bg-surface-elevated/50 border-surface-border text-slate-400 hover:border-slate-600 hover:text-slate-200'
                   }`}
                 >
@@ -157,17 +181,19 @@ export default function SignupPage() {
                   <div>
                     <div className="text-xs font-bold">Sales Representative</div>
                     <div className="text-[11px] text-slate-400 mt-0.5">
-                      Internal Deals & Quotations
+                      Internal Deals &amp; Quotations
                     </div>
                   </div>
                 </button>
 
+                {/* Customer */}
                 <button
                   type="button"
-                  onClick={() => setRole('CUSTOMER')}
+                  id="role-customer"
+                  onClick={() => handleRoleSwitch('CUSTOMER')}
                   className={`p-3.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
                     role === 'CUSTOMER'
-                      ? 'bg-brand-600/15 border-brand-500/50 text-white shadow-sm shadow-brand-500/20'
+                      ? 'bg-brand-600/15 border-brand-500/50 text-white shadow-sm shadow-brand-500/20 ring-1 ring-brand-500/30'
                       : 'bg-surface-elevated/50 border-surface-border text-slate-400 hover:border-slate-600 hover:text-slate-200'
                   }`}
                 >
@@ -190,22 +216,62 @@ export default function SignupPage() {
                   </div>
                 </button>
               </div>
-
-              {/* Accessible Dropdown Selector */}
-              <div className="relative">
-                <select
-                  id="role-select"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as SignupRole)}
-                  className="w-full px-3 py-2 bg-surface-elevated/70 border border-surface-border rounded-xl text-xs text-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 cursor-pointer"
-                >
-                  <option value="SALES_REP">Role: Sales Representative (Internal)</option>
-                  <option value="CUSTOMER">Role: Customer / Buyer (Company Account)</option>
-                </select>
-              </div>
             </div>
 
-            {/* Company Name (only if Customer role) */}
+            {/* ── Sales Rep: First Name + Last Name ── */}
+            {role === 'SALES_REP' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="firstName"
+                    className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider"
+                  >
+                    First Name <span className="text-brand-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <User size={15} />
+                    </span>
+                    <input
+                      id="firstName"
+                      type="text"
+                      autoComplete="given-name"
+                      required={role === 'SALES_REP'}
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="First name"
+                      className="w-full pl-10 pr-4 py-2.5 bg-surface-elevated/70 border border-surface-border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="lastName"
+                    className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider"
+                  >
+                    Last Name <span className="text-brand-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <User size={15} />
+                    </span>
+                    <input
+                      id="lastName"
+                      type="text"
+                      autoComplete="family-name"
+                      required={role === 'SALES_REP'}
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Last name"
+                      className="w-full pl-10 pr-4 py-2.5 bg-surface-elevated/70 border border-surface-border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Customer: Company Name ── */}
             {role === 'CUSTOMER' && (
               <div className="bg-surface-elevated/40 border border-brand-500/30 rounded-xl p-3.5 space-y-2 animate-fade-in">
                 <label
@@ -235,57 +301,14 @@ export default function SignupPage() {
               </div>
             )}
 
-            {/* Name fields */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor="firstName"
-                  className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider"
-                >
-                  First Name <span className="text-brand-400">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                    <User size={15} />
-                  </span>
-                  <input
-                    id="firstName"
-                    type="text"
-                    required
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-surface-elevated/70 border border-surface-border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
-                    placeholder="Jane"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="lastName"
-                  className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider"
-                >
-                  Last Name <span className="text-brand-400">*</span>
-                </label>
-                <input
-                  id="lastName"
-                  type="text"
-                  required
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-surface-elevated/70 border border-surface-border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
-                  placeholder="Doe"
-                />
-              </div>
-            </div>
-
-            {/* Email Address */}
+            {/* ── Email Address (label changes by role) ── */}
             <div>
               <label
                 htmlFor="email"
                 className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider"
               >
-                Work Email Address <span className="text-brand-400">*</span>
+                {role === 'SALES_REP' ? 'Work Email Address' : 'Company Email Address'}{' '}
+                <span className="text-brand-400">*</span>
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
@@ -299,12 +322,12 @@ export default function SignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-surface-elevated/70 border border-surface-border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
-                  placeholder="name@company.com"
+                  placeholder={role === 'SALES_REP' ? 'you@yourcompany.com' : 'contact@company.com'}
                 />
               </div>
             </div>
 
-            {/* Password */}
+            {/* ── Password ── */}
             <div>
               <label
                 htmlFor="password"
@@ -330,7 +353,7 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {/* Submit Button */}
+            {/* ── Submit ── */}
             <button
               id="signup-submit"
               type="submit"

@@ -36,6 +36,15 @@ interface ApprovalConfig {
   highApproverRoles: string[];
 }
 
+interface CustomerWithTier {
+  id: string;
+  name: string;
+  isActive: boolean;
+  discountTierId: string;
+  discountTier: { id: string; name: string; defaultDiscountCeiling: number };
+  createdAt: string;
+}
+
 export default function DiscountConfigPage() {
   const { token, user } = useAuth();
 
@@ -48,6 +57,12 @@ export default function DiscountConfigPage() {
     mediumApproverRoles: ['MANAGER'],
     highApproverRoles: ['MANAGER', 'FINANCE_OPS'],
   });
+
+  // Customer tier management state (Admin only)
+  const [customers, setCustomers] = useState<CustomerWithTier[]>([]);
+  const [tierEdits, setTierEdits] = useState<Record<string, string>>({}); // customerId → tierId
+  const [tierSaving, setTierSaving] = useState<Record<string, boolean>>({});
+  const [tierFeedback, setTierFeedback] = useState<Record<string, 'ok' | 'err'>>({});
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,11 +86,12 @@ export default function DiscountConfigPage() {
   async function loadAllConfig() {
     try {
       setLoading(true);
+      const authHeader = { Authorization: `Bearer ${token}` };
       const [tiersRes, rulesRes, catsRes, configRes] = await Promise.all([
-        fetch('/api/v1/internal/discount-tiers', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/v1/internal/discount-rules', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/v1/internal/categories', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/v1/internal/approval-config', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/v1/internal/discount-tiers', { headers: authHeader }),
+        fetch('/api/v1/internal/discount-rules', { headers: authHeader }),
+        fetch('/api/v1/internal/categories', { headers: authHeader }),
+        fetch('/api/v1/internal/approval-config', { headers: authHeader }),
       ]);
 
       if (tiersRes.ok) {
@@ -96,6 +112,20 @@ export default function DiscountConfigPage() {
       if (configRes.ok) {
         const data = await configRes.json();
         if (data.config) setApprovalConfig(data.config);
+      }
+
+      // Fetch customers for Admin tier management
+      if (user?.role === 'ADMIN') {
+        const custRes = await fetch('/api/v1/internal/customers', { headers: authHeader });
+        if (custRes.ok) {
+          const data = await custRes.json();
+          const custList: CustomerWithTier[] = data.customers || [];
+          setCustomers(custList);
+          // Initialise edit map to current tier per customer
+          const initEdits: Record<string, string> = {};
+          custList.forEach((c) => { initEdits[c.id] = c.discountTierId; });
+          setTierEdits(initEdits);
+        }
       }
     } catch (err: unknown) {
       setError((err as Error).message);
@@ -218,6 +248,39 @@ export default function DiscountConfigPage() {
     }
   }
 
+  async function handleSaveCustomerTier(customerId: string) {
+    const newTierId = tierEdits[customerId];
+    if (!newTierId) return;
+    setTierSaving((prev) => ({ ...prev, [customerId]: true }));
+    setTierFeedback((prev) => { const n = { ...prev }; delete n[customerId]; return n; });
+    try {
+      const res = await fetch(`/api/v1/internal/customers/${customerId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ discountTierId: newTierId }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to update tier');
+      }
+      const updated = await res.json();
+      // Update the customers list with fresh tier data
+      setCustomers((prev) =>
+        prev.map((c) => (c.id === customerId ? { ...c, ...updated.customer } : c))
+      );
+      setTierFeedback((prev) => ({ ...prev, [customerId]: 'ok' }));
+      setTimeout(() => setTierFeedback((prev) => { const n = { ...prev }; delete n[customerId]; return n; }), 3000);
+    } catch (err: unknown) {
+      setTierFeedback((prev) => ({ ...prev, [customerId]: 'err' }));
+      setFeedback((err as Error).message);
+    } finally {
+      setTierSaving((prev) => ({ ...prev, [customerId]: false }));
+    }
+  }
+
   const isAdmin = user?.role === 'ADMIN';
 
   if (loading) {
@@ -251,7 +314,7 @@ export default function DiscountConfigPage() {
             Discount & Governance Policy
           </h1>
           <p className="text-sm text-gray-400 mt-1">
-            Configure customer discount tiers, category ceilings, and risk routing boundaries
+            Configure customer discount tiers, category ceilings, risk routing boundaries, and customer tier assignments
           </p>
         </div>
         {feedback && (
@@ -461,6 +524,137 @@ export default function DiscountConfigPage() {
           )}
         </form>
       </div>
+
+      {/* Section 4: Customer Tier Assignments (Admin Only) */}
+      {isAdmin && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-brand-400 inline-block" />
+                Customer Tier Assignments
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Reassign a customer's discount tier — changes take effect on the next quotation
+              </p>
+            </div>
+            <span className="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider rounded bg-brand-900/40 border border-brand-700/50 text-brand-300">
+              Admin Only
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-950/80 border-b border-gray-800 text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <tr>
+                  <th className="px-6 py-3">Company</th>
+                  <th className="px-6 py-3">Status</th>
+                  <th className="px-6 py-3">Current Tier</th>
+                  <th className="px-6 py-3">Assign Tier</th>
+                  <th className="px-6 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800/60 text-gray-300">
+                {customers.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500 text-sm">
+                      No customers registered yet
+                    </td>
+                  </tr>
+                )}
+                {customers.map((c) => {
+                  const tierName = c.discountTier?.name ?? 'Unknown';
+                  const tierBadge =
+                    tierName === 'Gold'
+                      ? 'bg-yellow-900/40 text-yellow-400 border-yellow-700/60'
+                      : tierName === 'Silver'
+                      ? 'bg-slate-700/50 text-slate-300 border-slate-600/60'
+                      : 'bg-amber-900/30 text-amber-400 border-amber-700/50';
+                  const isSaving = tierSaving[c.id] ?? false;
+                  const fb = tierFeedback[c.id];
+                  const isDirty = tierEdits[c.id] !== c.discountTierId;
+
+                  return (
+                    <tr key={c.id} className="hover:bg-gray-800/30 transition">
+                      {/* Company name */}
+                      <td className="px-6 py-3.5 font-medium text-white">{c.name}</td>
+
+                      {/* Active status */}
+                      <td className="px-6 py-3.5">
+                        <span
+                          className={`px-2 py-0.5 text-xs font-medium rounded border ${
+                            c.isActive
+                              ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/80'
+                              : 'bg-gray-800 text-gray-500 border-gray-700'
+                          }`}
+                        >
+                          {c.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+
+                      {/* Current tier badge */}
+                      <td className="px-6 py-3.5">
+                        <span className={`px-2.5 py-0.5 text-xs font-semibold rounded border ${tierBadge}`}>
+                          {tierName}
+                          {c.discountTier?.defaultDiscountCeiling != null && (
+                            <span className="ml-1 opacity-70">
+                              ({Number(c.discountTier.defaultDiscountCeiling).toFixed(0)}%)
+                            </span>
+                          )}
+                        </span>
+                      </td>
+
+                      {/* Tier dropdown */}
+                      <td className="px-6 py-3.5">
+                        <select
+                          id={`tier-select-${c.id}`}
+                          value={tierEdits[c.id] ?? c.discountTierId}
+                          onChange={(e) =>
+                            setTierEdits((prev) => ({ ...prev, [c.id]: e.target.value }))
+                          }
+                          className="bg-gray-950 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500 min-w-[120px] cursor-pointer"
+                        >
+                          {tiers
+                            .filter((t) => t.isActive)
+                            .map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name} ({Number(t.defaultDiscountCeiling).toFixed(0)}%)
+                              </option>
+                            ))}
+                        </select>
+                      </td>
+
+                      {/* Save button + feedback */}
+                      <td className="px-6 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {fb === 'ok' && (
+                            <span className="text-xs text-emerald-400 font-medium">✓ Saved</span>
+                          )}
+                          {fb === 'err' && (
+                            <span className="text-xs text-rose-400 font-medium">✗ Failed</span>
+                          )}
+                          <button
+                            id={`save-tier-${c.id}`}
+                            onClick={() => handleSaveCustomerTier(c.id)}
+                            disabled={isSaving || !isDirty}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition ${
+                              isDirty && !isSaving
+                                ? 'bg-brand-600 hover:bg-brand-500 text-white cursor-pointer'
+                                : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                            }`}
+                          >
+                            {isSaving ? 'Saving…' : 'Save'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Add Tier Modal */}
       {isTierModalOpen && (

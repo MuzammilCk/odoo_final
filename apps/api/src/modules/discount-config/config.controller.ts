@@ -67,6 +67,10 @@ const updateApprovalConfigSchema = z.object({
   highApproverRoles: z.array(z.string()).optional(),
 });
 
+const updateCustomerTierSchema = z.object({
+  discountTierId: z.string().uuid('discountTierId must be a valid UUID'),
+});
+
 // ── Discount Tiers Endpoints ────────────────────────────────────────────────
 
 // GET /discount-tiers — List discount tiers
@@ -270,5 +274,62 @@ configRouter.put(
     };
 
     res.json({ config: currentApprovalConfig, message: 'Approval configuration updated' });
+  },
+);
+
+// ── Customer Tier Management (Admin Only) ───────────────────────────────────
+
+// GET /customers — List all customers with current discount tier
+configRouter.get(
+  '/customers',
+  requireRole('ADMIN'),
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const customers = await prisma.customer.findMany({
+        include: {
+          discountTier: {
+            select: { id: true, name: true, defaultDiscountCeiling: true },
+          },
+        },
+        orderBy: { name: 'asc' },
+      });
+      res.json({ customers });
+    } catch (err: unknown) {
+      const e = err as { message: string };
+      res.status(500).json({ error: e.message });
+    }
+  },
+);
+
+// PATCH /customers/:id — Reassign a customer's discount tier
+configRouter.patch(
+  '/customers/:id',
+  requireRole('ADMIN'),
+  async (req: Request, res: Response): Promise<void> => {
+    const parsed = updateCustomerTierSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() });
+      return;
+    }
+
+    try {
+      const customer = await prisma.customer.update({
+        where: { id: req.params.id as string },
+        data: { discountTierId: parsed.data.discountTierId },
+        include: {
+          discountTier: {
+            select: { id: true, name: true, defaultDiscountCeiling: true },
+          },
+        },
+      });
+      res.json({ customer });
+    } catch (err: unknown) {
+      const e = err as { code?: string; message: string };
+      if (e.code === 'P2025') {
+        res.status(404).json({ error: 'Customer not found' });
+      } else {
+        res.status(400).json({ error: e.message });
+      }
+    }
   },
 );
