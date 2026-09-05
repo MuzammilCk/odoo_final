@@ -46,7 +46,15 @@ interface TermsSnapshot {
   marginPercent: number;
   riskScore: number;
   riskLevel: string;
-  customer?: { id: string; name: string };
+  customer?: {
+    id: string;
+    name: string;
+    discountTier?: {
+      id?: string;
+      name: string;
+      defaultDiscountCeiling?: number;
+    };
+  };
   lines?: Array<{
     id: string;
     product?: { name: string; sku?: string };
@@ -74,7 +82,15 @@ interface ApprovalDetail {
     quoteNumber: string;
     currentVersion: number;
     status: string;
-    customer?: { id: string; name: string };
+    customer?: {
+      id: string;
+      name: string;
+      discountTier?: {
+        id?: string;
+        name: string;
+        defaultDiscountCeiling?: number;
+      };
+    };
   };
   steps: ApprovalStep[];
 }
@@ -276,7 +292,19 @@ export default function ApprovalDetailPage() {
             </span>
           </div>
           <p className="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
-            <span>Customer: <strong className="text-slate-200">{snapshot?.customer?.name}</strong></span>
+            <span>
+              Customer: <strong className="text-slate-200">{(snapshot?.customer ?? approval.quotation?.customer)?.name ?? '—'}</strong>
+            </span>
+            {((snapshot?.customer ?? approval.quotation?.customer)?.discountTier?.name) && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/25">
+                <span>{(snapshot?.customer ?? approval.quotation?.customer)?.discountTier?.name} Tier</span>
+                {(snapshot?.customer ?? approval.quotation?.customer)?.discountTier?.defaultDiscountCeiling != null && (
+                  <span className="text-amber-400/80 font-mono font-normal">
+                    ({Number((snapshot?.customer ?? approval.quotation?.customer)?.discountTier?.defaultDiscountCeiling)}% Max Ceiling)
+                  </span>
+                )}
+              </span>
+            )}
             <span>&bull;</span>
             <span>Submitted: <strong className="text-slate-300">{new Date(approval.submittedAt).toLocaleString()}</strong></span>
           </p>

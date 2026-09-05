@@ -126,9 +126,9 @@ async function showDatabase() {
       Warehouse: s.warehouse.name,
       Weight: s.warehouse.shippingCostWeight,
       Product: s.product.name,
-      OnHand: s.quantityOnHand,
-      Reserved: s.quantityReserved,
-      Available: s.quantityOnHand - s.quantityReserved,
+      OnHand: Number(s.quantityOnHand),
+      Reserved: Number(s.quantityReserved),
+      Available: Number(s.quantityOnHand) - Number(s.quantityReserved),
     }))
   );
 }

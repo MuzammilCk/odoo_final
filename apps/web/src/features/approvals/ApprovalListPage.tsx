@@ -38,7 +38,11 @@ interface ApprovalRequestItem {
     id: string;
     quoteNumber: string;
     grandTotal: number | string;
-    customer?: { id: string; name: string };
+    customer?: {
+      id: string;
+      name: string;
+      discountTier?: { id?: string; name: string; defaultDiscountCeiling?: number };
+    };
     salesRep?: { id: string; firstName: string; lastName: string };
   };
   steps: ApprovalStep[];
@@ -221,7 +225,14 @@ export default function ApprovalListPage() {
                         </div>
                       </td>
                       <td className="px-5 py-4 font-medium text-slate-100">
-                        {req.quotation?.customer?.name ?? '—'}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{req.quotation?.customer?.name ?? '—'}</span>
+                          {req.quotation?.customer?.discountTier?.name && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                              {req.quotation.customer.discountTier.name}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap">
                         <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider ${getRiskBadge(req.riskLevel)}`}>

@@ -30,7 +30,9 @@ export async function createApprovalRequest(
     const quotation = await tx.quotation.findUnique({
       where: { id: quotationId },
       include: {
-        customer: true,
+        customer: {
+          include: { discountTier: true },
+        },
         lines: {
           include: { product: true },
           orderBy: { createdAt: 'asc' },

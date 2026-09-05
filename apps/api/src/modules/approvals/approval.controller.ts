@@ -63,6 +63,13 @@ approvalRouter.get(
                 select: {
                   id: true,
                   name: true,
+                  discountTier: {
+                    select: {
+                      id: true,
+                      name: true,
+                      defaultDiscountCeiling: true,
+                    },
+                  },
                 },
               },
             },
@@ -104,6 +111,13 @@ approvalRouter.get(
                 select: {
                   id: true,
                   name: true,
+                  discountTier: {
+                    select: {
+                      id: true,
+                      name: true,
+                      defaultDiscountCeiling: true,
+                    },
+                  },
                 },
               },
             },
