@@ -8,6 +8,7 @@ import { Router, type Request, type Response } from 'express';
 import { authenticateToken } from '../auth/auth.middleware.js';
 import { requireRole } from '../auth/rbac.middleware.js';
 import * as ReportingService from './reporting.service.js';
+import * as ReportExportService from './report-export.service.js';
 
 export const reportingRouter = Router();
 
@@ -86,27 +87,47 @@ reportingRouter.get(
     try {
       const { reportType, format } = req.query;
       const filters = parseDateFilters(req);
+      const typeStr = (reportType as string) || 'sales-performance';
+      const fmtStr = ((format as string) || 'json').toLowerCase();
 
       let data: unknown;
-      if (reportType === 'product-performance') {
+      if (typeStr === 'product-performance') {
         data = await ReportingService.getProductPerformance(filters);
-      } else if (reportType === 'approval-summary') {
+      } else if (typeStr === 'approval-summary') {
         data = await ReportingService.getApprovalSummary(filters);
       } else {
         data = await ReportingService.getSalesPerformance(filters);
       }
 
-      if (format === 'csv') {
-        // Return CSV representation
-        const jsonStr = JSON.stringify(data, null, 2);
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const baseFilename = `${typeStr}-${timestamp}`;
+
+      if (fmtStr === 'pdf') {
+        const pdfBuffer = await ReportExportService.generateReportPdf(typeStr, data, filters);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}.pdf"`);
+        res.send(pdfBuffer);
+        return;
+      }
+
+      if (fmtStr === 'xls' || fmtStr === 'xlsx') {
+        const xlsBuffer = await ReportExportService.generateReportXls(typeStr, data, filters);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}.xlsx"`);
+        res.send(xlsBuffer);
+        return;
+      }
+
+      if (fmtStr === 'csv') {
+        const csvStr = ReportExportService.generateReportCsv(typeStr, data);
         res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename="${reportType || 'sales'}-report.csv"`);
-        res.send(jsonStr);
+        res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}.csv"`);
+        res.send(csvStr);
         return;
       }
 
       res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename="${reportType || 'sales'}-report.json"`);
+      res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}.json"`);
       res.json(data);
     } catch (err: unknown) {
       const e = err as { status?: number; message: string };

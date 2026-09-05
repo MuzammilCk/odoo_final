@@ -25,7 +25,10 @@ declare global {
  */
 export function authenticateToken(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers['authorization'];
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  let token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token && typeof req.query.token === 'string') {
+    token = req.query.token;
+  }
 
   if (!token) {
     res.status(401).json({ error: 'No token provided' });

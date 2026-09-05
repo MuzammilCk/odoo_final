@@ -73,19 +73,58 @@ export default function ReportingPage() {
     loadReports();
   }, [token, startDate, endDate]);
 
-  function handleExport(format: 'csv' | 'json') {
-    const reportType =
-      activeTab === 'products'
-        ? 'product-performance'
-        : activeTab === 'approvals'
-        ? 'approval-summary'
-        : 'sales-performance';
+  const [exporting, setExporting] = useState<'pdf' | 'xls' | 'csv' | null>(null);
 
-    const url = `/api/v1/internal/reports/export?reportType=${reportType}&format=${format}${
-      startDate ? `&startDate=${startDate}` : ''
-    }${endDate ? `&endDate=${endDate}` : ''}`;
+  async function handleExport(format: 'pdf' | 'xls' | 'csv') {
+    setExporting(format);
+    setError(null);
+    try {
+      const reportType =
+        activeTab === 'products'
+          ? 'product-performance'
+          : activeTab === 'approvals'
+          ? 'approval-summary'
+          : 'sales-performance';
 
-    window.open(url, '_blank');
+      const query = new URLSearchParams();
+      query.append('reportType', reportType);
+      query.append('format', format);
+      if (startDate) query.append('startDate', startDate);
+      if (endDate) query.append('endDate', endDate);
+
+      const res = await fetch(`/api/v1/internal/reports/export?${query.toString()}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Export failed (${res.status}): ${res.statusText}`);
+      }
+
+      const blob = await res.blob();
+      const mimeTypes: Record<string, string> = {
+        pdf: 'application/pdf',
+        xls: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        csv: 'text/csv',
+      };
+
+      const extension = format === 'xls' ? 'xlsx' : format;
+      const downloadUrl = window.URL.createObjectURL(
+        new Blob([blob], { type: mimeTypes[format] || 'application/octet-stream' }),
+      );
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${reportType}-${new Date().toISOString().slice(0, 10)}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err: any) {
+      setError(err.message || 'Failed to export document');
+    } finally {
+      setExporting(null);
+    }
   }
 
   return (
@@ -101,19 +140,31 @@ export default function ReportingPage() {
           </p>
         </div>
 
-        {/* Export Buttons */}
-        <div className="flex items-center gap-2">
+        {/* Export Buttons (§A7: PDF / XLS) */}
+        <div className="flex items-center gap-2.5">
           <button
-            onClick={() => handleExport('csv')}
-            className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 rounded-lg text-xs font-medium transition flex items-center gap-1.5"
+            onClick={() => handleExport('pdf')}
+            disabled={exporting !== null}
+            className="px-3.5 py-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-200 border border-red-800/60 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
           >
-            <span>📥</span> Export CSV
+            <span>{exporting === 'pdf' ? '⏳' : '📕'}</span>
+            <span>{exporting === 'pdf' ? 'Generating PDF...' : 'Export PDF'}</span>
           </button>
           <button
-            onClick={() => handleExport('json')}
-            className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 rounded-lg text-xs font-medium transition flex items-center gap-1.5"
+            onClick={() => handleExport('xls')}
+            disabled={exporting !== null}
+            className="px-3.5 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200 border border-emerald-800/60 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
           >
-            <span>📥</span> Export JSON
+            <span>{exporting === 'xls' ? '⏳' : '📊'}</span>
+            <span>{exporting === 'xls' ? 'Generating XLS...' : 'Export XLS'}</span>
+          </button>
+          <button
+            onClick={() => handleExport('csv')}
+            disabled={exporting !== null}
+            className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 rounded-lg text-xs font-medium transition flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <span>📥</span>
+            <span>CSV</span>
           </button>
         </div>
       </div>
