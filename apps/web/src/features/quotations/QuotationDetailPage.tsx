@@ -45,7 +45,7 @@ interface QuotationLineItem {
   discountPercent: number | string;
   allowedDiscountPercent: number | string;
   discountOveragePercent: number | string;
-  lineSubtotal: number | string;
+  lineTotal: number | string;
   product: { id: string; name: string; categoryId: string };
 }
 
@@ -72,10 +72,13 @@ interface QuotationDetail {
 interface RecommendationItem {
   productId: string;
   productName: string;
+  categoryName: string;
   unitPrice: number;
   score: number;
   marginDeltaPercent: number;
   reason: string;
+  recommendationType: 'CROSS_SELL' | 'UPSELL' | 'PROMOTED';
+  isPromoted: boolean;
 }
 
 export default function QuotationDetailPage() {
@@ -108,10 +111,18 @@ export default function QuotationDetailPage() {
   useEffect(() => {
     if (id && token) {
       fetchQuotation();
-      fetchRecommendations();
       fetchAvailableProducts();
     }
   }, [id, token]);
+
+  // Re-fetch recommendations whenever lines change, but only if there are lines
+  useEffect(() => {
+    if (id && token && quotation && quotation.lines.length > 0) {
+      fetchRecommendations();
+    } else {
+      setRecommendations([]);
+    }
+  }, [id, token, quotation?.lines.length]);
 
   async function fetchQuotation() {
     try {
@@ -146,12 +157,13 @@ export default function QuotationDetailPage() {
         const mapped: RecommendationItem[] = rawRecs.map((r: any) => ({
           productId: r.product?.id || r.productId,
           productName: r.product?.name || r.productName || 'Recommended Product',
+          categoryName: r.product?.category?.name || '',
           unitPrice: Number(r.product?.basePrice ?? r.unitPrice ?? 0),
           score: Number(r.recommendationScore ?? r.score ?? 0),
           marginDeltaPercent: Number(r.marginDelta ?? r.marginDeltaPercent ?? 0),
-          reason: r.isPromoted
-            ? 'High-margin strategic recommendation'
-            : (r.coPurchaseScore > 0 ? 'Frequently co-purchased with current items' : 'Catalog addition opportunity'),
+          reason: r.reason || (r.coPurchaseScore > 0 ? 'Frequently co-purchased' : 'Complements this order'),
+          recommendationType: r.recommendationType || (r.isPromoted ? 'PROMOTED' : 'CROSS_SELL'),
+          isPromoted: Boolean(r.isPromoted),
         }));
         setRecommendations(mapped);
       }
@@ -416,7 +428,10 @@ export default function QuotationDetailPage() {
     );
   }
 
-  const isDraft = quotation.status === 'DRAFT';
+  const isDraft    = quotation.status === 'DRAFT';
+  // Only Sales Reps can edit lines and submit quotations — Managers/Admin can view only
+  const isSalesRep = user?.role === 'SALES_REP';
+  const canEdit    = isDraft && isSalesRep;
   const riskInfo = getRiskColor(quotation.riskLevel);
   const statusBadge = getStatusBadge(quotation.status);
   const RiskIcon = riskInfo.icon;
@@ -464,7 +479,7 @@ export default function QuotationDetailPage() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          {isDraft && (
+          {canEdit && (
             <>
               <button
                 onClick={() => setIsAddLineModalOpen(true)}
@@ -532,7 +547,7 @@ export default function QuotationDetailPage() {
                   {quotation.lines.length} items
                 </span>
               </div>
-              {isDraft && (
+              {canEdit && (
                 <button
                   onClick={() => setIsAddLineModalOpen(true)}
                   className="text-xs font-semibold text-brand-400 hover:text-brand-300 transition flex items-center gap-1 cursor-pointer"
@@ -554,13 +569,13 @@ export default function QuotationDetailPage() {
                     <th className="px-3 py-3 text-right">Ceiling %</th>
                     <th className="px-3 py-3 text-right">Overage</th>
                     <th className="px-5 py-3 text-right">Subtotal</th>
-                    {isDraft && <th className="px-4 py-3 text-right">Action</th>}
+                    {canEdit && <th className="px-4 py-3 text-right">Action</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-border text-slate-300 text-xs">
                   {quotation.lines.length === 0 ? (
                     <tr>
-                      <td colSpan={isDraft ? 8 : 7} className="px-6 py-12 text-center text-slate-500 font-mono">
+                      <td colSpan={canEdit ? 8 : 7} className="px-6 py-12 text-center text-slate-500 font-mono">
                         No line items yet. Click &quot;Add Item&quot; to configure pricing lines.
                       </td>
                     </tr>
@@ -637,10 +652,10 @@ export default function QuotationDetailPage() {
                           </td>
 
                           <td className="px-5 py-3.5 text-right font-mono font-bold text-white tabular-numbers">
-                            ${Number(line.lineSubtotal).toFixed(2)}
+                            ${Number(line.lineTotal).toFixed(2)}
                           </td>
 
-                          {isDraft && (
+                          {canEdit && (
                             <td className="px-4 py-3.5 text-right whitespace-nowrap">
                               {isEditing ? (
                                 <div className="flex items-center justify-end gap-1">
@@ -703,18 +718,30 @@ export default function QuotationDetailPage() {
                 <div>
                   <h3 className="text-sm font-bold text-white tracking-tight">Smart Commercial Add-Ons</h3>
                   <p className="text-xs text-slate-400">
-                    Engine recommendations based on catalog co-purchasing & margin potential
+                    Engine recommendations based on catalog co-purchasing &amp; margin potential
                   </p>
                 </div>
               </div>
-              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-300 border border-brand-500/30">
-                Active
+              <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border ${
+                quotation.lines.length > 0
+                  ? 'bg-brand-500/15 text-brand-300 border-brand-500/30'
+                  : 'bg-slate-500/10 text-slate-500 border-slate-500/20'
+              }`}>
+                {quotation.lines.length > 0 ? 'Active' : 'Inactive'}
               </span>
             </div>
 
-            {recommendations.length === 0 ? (
+            {quotation.lines.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-5 text-center">
+                <Sparkles size={22} className="text-slate-600" />
+                <p className="text-xs font-semibold text-slate-400">Add a product to unlock recommendations</p>
+                <p className="text-[11px] text-slate-600 max-w-xs">
+                  Smart upsell &amp; cross-sell suggestions will appear here once you add at least one line item to this quotation.
+                </p>
+              </div>
+            ) : recommendations.length === 0 ? (
               <p className="text-xs text-slate-500 font-mono py-2">
-                No active recommendations for this current quotation configuration.
+                No additional recommendations for this current quotation configuration.
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -725,21 +752,35 @@ export default function QuotationDetailPage() {
                   >
                     <div>
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-xs font-bold text-white">{rec.productName}</h4>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand-500/15 text-brand-300 border border-brand-500/25">
-                          Score {rec.score}
-                        </span>
+                        <div>
+                          <h4 className="text-xs font-bold text-white leading-snug">{rec.productName}</h4>
+                          {rec.categoryName && (
+                            <p className="text-[10px] text-slate-500 mt-0.5">{rec.categoryName}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {rec.isPromoted && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-yellow-500/15 text-yellow-300 border border-yellow-500/25">
+                              ★ Promoted
+                            </span>
+                          )}
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-slate-400 border border-surface-border">
+                            Score {rec.score}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-xs text-slate-400 mt-1">{rec.reason}</p>
+
+                      <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">{rec.reason}</p>
+
                       <div className="flex items-center gap-3 mt-2.5 text-xs font-mono">
                         <span className="text-white font-semibold">${Number(rec.unitPrice || 0).toFixed(2)}</span>
                         {Number(rec.marginDeltaPercent || 0) > 0 && (
-                          <span className="text-deal-400 font-medium">+{Number(rec.marginDeltaPercent || 0)}% Margin</span>
+                          <span className="text-emerald-400 font-medium">+{Number(rec.marginDeltaPercent || 0).toFixed(2)}% margin</span>
                         )}
                       </div>
                     </div>
 
-                    {isDraft && (
+                    {canEdit && (
                       <button
                         onClick={() => handleAddRecommendation(rec.productId)}
                         className="w-full text-xs font-semibold py-1.5 px-3 rounded-xl bg-brand-600/20 hover:bg-brand-600/30 text-brand-300 border border-brand-500/30 transition flex items-center justify-center gap-1.5 cursor-pointer"

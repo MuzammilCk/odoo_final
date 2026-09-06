@@ -143,8 +143,10 @@ export default function ApprovalListPage() {
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Review and decide quotation discount exception requests for{' '}
-            <span className="text-slate-200 font-semibold">{user?.role?.replace('_', ' ')}</span>
+            {user?.role === 'SALES_REP'
+              ? 'Track the approval status of your submitted quotations'
+              : <>Review and decide quotation discount exception requests as{' '}<span className="text-slate-200 font-semibold">{user?.role?.replace('_', ' ')}</span></>
+            }
           </p>
         </div>
       </div>

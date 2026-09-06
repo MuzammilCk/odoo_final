@@ -17,7 +17,6 @@ import {
   Clock,
   DollarSign,
   Percent,
-  Plus,
   ArrowUpRight,
   ChevronRight,
   TrendingUp,
@@ -49,6 +48,7 @@ interface RecentQuotation {
 export default function DashboardPage() {
   const { token, user } = useAuth();
   const navigate = useNavigate();
+
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [recentQuotations, setRecentQuotations] = useState<RecentQuotation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,17 +182,7 @@ export default function DashboardPage() {
             Welcome back, <span className="text-slate-200 font-medium">{user?.firstName}</span> &bull; Role: <span className="text-brand-400 font-mono">{user?.role}</span>
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {user?.role === 'SALES_REP' && (
-            <button
-              onClick={() => navigate('/app/quotations')}
-              className="px-4 py-2 bg-brand-600 hover:bg-brand-500 active:bg-brand-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-brand-600/25 transition duration-150 flex items-center gap-2 cursor-pointer"
-            >
-              <Plus size={15} />
-              <span>New Quotation</span>
-            </button>
-          )}
-        </div>
+
       </div>
 
       {/* Metric Cards */}

@@ -27,29 +27,63 @@ const decideStepSchema = z.object({
   comment: z.string().min(1, 'Comment is required'),
 });
 
-// ── 1. GET / — List pending approval requests matching current user's role ────
+// ── 1. GET / — List approval requests ───────────────────────────────────────
+// SALES_REP sees approvals for their own quotations only (to track status)
+// MANAGER / FINANCE_OPS / ADMIN see pending approvals requiring their action
 
 approvalRouter.get(
   '/',
-  requireRole('MANAGER', 'FINANCE_OPS', 'ADMIN'),
+  requireRole('SALES_REP', 'MANAGER', 'FINANCE_OPS', 'ADMIN'),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const userRole = req.user!.role;
-      let stepFilter: Prisma.ApprovalStepWhereInput = { status: ApprovalStepStatus.PENDING };
+      const userId   = req.user!.userId;
 
+      // Sales Reps only see approvals for quotations they own
+      if (userRole === 'SALES_REP') {
+        const approvals = await prisma.approvalRequest.findMany({
+          where: {
+            quotation: { salesRepId: userId },
+          },
+          include: {
+            quotation: {
+              select: {
+                id: true,
+                quoteNumber: true,
+                riskLevel: true,
+                grandTotal: true,
+                currentVersion: true,
+                customer: {
+                  select: {
+                    id: true,
+                    name: true,
+                    discountTier: {
+                      select: { id: true, name: true, defaultDiscountCeiling: true },
+                    },
+                  },
+                },
+              },
+            },
+            steps: { orderBy: { sequenceNo: 'asc' } },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        res.json({ approvals, approvalRequests: approvals });
+        return;
+      }
+
+      // MANAGER / FINANCE_OPS / ADMIN — see pending approvals awaiting their action
+      let stepFilter: Prisma.ApprovalStepWhereInput = { status: ApprovalStepStatus.PENDING };
       if (userRole === 'MANAGER') {
         stepFilter = { status: ApprovalStepStatus.PENDING, approvalLevel: ApprovalLevel.MANAGER };
       } else if (userRole === 'FINANCE_OPS') {
         stepFilter = { status: ApprovalStepStatus.PENDING, approvalLevel: ApprovalLevel.FINANCE };
       }
-      // ADMIN sees all pending steps
 
       const approvals = await prisma.approvalRequest.findMany({
         where: {
           status: ApprovalRequestStatus.PENDING,
-          steps: {
-            some: stepFilter,
-          },
+          steps: { some: stepFilter },
         },
         include: {
           quotation: {
@@ -64,19 +98,13 @@ approvalRouter.get(
                   id: true,
                   name: true,
                   discountTier: {
-                    select: {
-                      id: true,
-                      name: true,
-                      defaultDiscountCeiling: true,
-                    },
+                    select: { id: true, name: true, defaultDiscountCeiling: true },
                   },
                 },
               },
             },
           },
-          steps: {
-            orderBy: { sequenceNo: 'asc' },
-          },
+          steps: { orderBy: { sequenceNo: 'asc' } },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -93,7 +121,7 @@ approvalRouter.get(
 
 approvalRouter.get(
   '/:id',
-  requireRole('MANAGER', 'FINANCE_OPS', 'ADMIN'),
+  requireRole('SALES_REP', 'MANAGER', 'FINANCE_OPS', 'ADMIN'),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const approval = await prisma.approvalRequest.findUnique({

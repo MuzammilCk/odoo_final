@@ -63,7 +63,7 @@ interface TermsSnapshot {
     discountPercent: number;
     allowedDiscountPercent?: number;
     discountOveragePercent?: number;
-    lineSubtotal: number;
+    lineTotal: number;
   }>;
 }
 
@@ -513,7 +513,7 @@ export default function ApprovalDetailPage() {
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-right font-bold text-white tabular-numbers">
-                      ${Number(line.lineSubtotal).toFixed(2)}
+                      ${Number(line.lineTotal).toFixed(2)}
                     </td>
                   </tr>
                 );

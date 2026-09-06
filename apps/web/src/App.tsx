@@ -56,9 +56,15 @@ export default function App() {
               <Route path="/app/dashboard" element={<DashboardPage />} />
               <Route path="/app/quotations" element={<QuotationListPage />} />
               <Route path="/app/quotations/:id" element={<QuotationDetailPage />} />
+              {/* Approvals — all internal roles can VIEW (Sales Rep tracks own quote status)
+                  Approve/Reject actions are role-gated inside the page itself */}
               <Route path="/app/approvals" element={<ApprovalListPage />} />
               <Route path="/app/approvals/:id" element={<ApprovalDetailPage />} />
-              <Route path="/app/config" element={<DiscountConfigPage />} />
+
+              {/* Discount Config — MANAGER (configures tiers/chains) + ADMIN (full backend) */}
+              <Route element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} redirectTo="/app/dashboard" />}>
+                <Route path="/app/config" element={<DiscountConfigPage />} />
+              </Route>
 
               {/* Lane B */}
               <Route path="/app/fulfillment"     element={<FulfillmentListPage />} />

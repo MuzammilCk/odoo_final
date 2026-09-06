@@ -10,7 +10,7 @@
  */
 
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, type UserRole } from '../context/AuthContext';
 import {
   LayoutDashboard,
   FileText,
@@ -30,6 +30,7 @@ interface NavItem {
   to: string;
   label: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
+  roles?: UserRole[]; // if set, only these roles see this link
 }
 
 interface NavSection {
@@ -41,9 +42,10 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'COMMERCIAL',
     items: [
-      { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/app/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
       { to: '/app/quotations', label: 'Quotations', icon: FileText },
-      { to: '/app/approvals', label: 'Approvals', icon: CheckCircle2 },
+      // All internal users can track approval status (Sales Rep tracks their own quotes)
+      { to: '/app/approvals',  label: 'Approvals',  icon: CheckCircle2 },
     ],
   },
   {
@@ -70,7 +72,11 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'SYSTEM',
     items: [
-      { to: '/app/config', label: 'Discount Config', icon: Sliders },
+      {
+        // Manager configures discount tiers/approval chains; Admin manages all backend
+        to: '/app/config', label: 'Discount Config', icon: Sliders,
+        roles: ['MANAGER', 'ADMIN'],
+      },
     ],
   },
 ];
@@ -109,47 +115,53 @@ export default function AppLayout() {
 
         {/* Navigation Sections */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
-          {NAV_SECTIONS.map(section => (
-            <div key={section.title} className="space-y-1">
-              <div className="px-3 text-[10px] font-semibold tracking-wider text-slate-500 uppercase">
-                {section.title}
+          {NAV_SECTIONS.map(section => {
+            const visibleItems = section.items.filter(
+              item => !item.roles || item.roles.includes(user?.role as UserRole)
+            );
+            if (visibleItems.length === 0) return null;
+            return (
+              <div key={section.title} className="space-y-1">
+                <div className="px-3 text-[10px] font-semibold tracking-wider text-slate-500 uppercase">
+                  {section.title}
+                </div>
+                <div className="space-y-0.5">
+                  {visibleItems.map(item => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        className={({ isActive }) =>
+                          `group relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+                            isActive
+                              ? 'bg-brand-500/15 text-white shadow-sm ring-1 ring-brand-500/30'
+                              : 'text-slate-400 hover:text-slate-100 hover:bg-surface-elevated/70'
+                          }`
+                        }
+                      >
+                        {({ isActive }) => (
+                          <>
+                            <span
+                              className={`transition-colors duration-150 ${
+                                isActive ? 'text-brand-400' : 'text-slate-400 group-hover:text-slate-200'
+                              }`}
+                            >
+                              <Icon size={17} />
+                            </span>
+                            <span className="truncate">{item.label}</span>
+                            {isActive && (
+                              <span className="absolute right-2.5 w-1.5 h-1.5 rounded-full bg-brand-400 shadow-[0_0_8px_#38bdf8]" />
+                            )}
+                          </>
+                        )}
+                      </NavLink>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="space-y-0.5">
-                {section.items.map(item => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      className={({ isActive }) =>
-                        `group relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
-                          isActive
-                            ? 'bg-brand-500/15 text-white shadow-sm ring-1 ring-brand-500/30'
-                            : 'text-slate-400 hover:text-slate-100 hover:bg-surface-elevated/70'
-                        }`
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <span
-                            className={`transition-colors duration-150 ${
-                              isActive ? 'text-brand-400' : 'text-slate-400 group-hover:text-slate-200'
-                            }`}
-                          >
-                            <Icon size={17} />
-                          </span>
-                          <span className="truncate">{item.label}</span>
-                          {isActive && (
-                            <span className="absolute right-2.5 w-1.5 h-1.5 rounded-full bg-brand-400 shadow-[0_0_8px_#38bdf8]" />
-                          )}
-                        </>
-                      )}
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* User Profile Footer */}

@@ -19,7 +19,7 @@ import bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 const BCRYPT_ROUNDS = 12;
-const DEMO_PASSWORD = 'demo123';
+const DEMO_PASSWORD = 'password123';
 
 async function main() {
   console.log('🌱 Starting master configuration seed...');
