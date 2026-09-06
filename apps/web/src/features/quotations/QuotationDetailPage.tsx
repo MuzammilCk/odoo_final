@@ -27,6 +27,9 @@ import {
   AlertCircle,
   FileCheck2,
   Send,
+  MessageSquare,
+  Clock,
+  CornerDownRight,
 } from 'lucide-react';
 
 interface ProductItem {
@@ -81,6 +84,28 @@ interface RecommendationItem {
   isPromoted: boolean;
 }
 
+interface NegotiationRequestItem {
+  id: string;
+  quotationId: string;
+  negotiationType: string;
+  message?: string | null;
+  requestedDiscountPercent?: number | null;
+  requestedDeliveryDate?: string | null;
+  status: string;
+  createdAt: string;
+  requestedBy?: { id: string; firstName: string; lastName: string; email: string };
+  resolvedBy?: { id: string; firstName: string; lastName: string; email: string };
+  quotationLine?: {
+    id: string;
+    descriptionSnapshot: string;
+    quantity: number;
+    unitPrice: number;
+    discountPercent: number;
+    lineTotal: number;
+    product?: { name: string };
+  };
+}
+
 export default function QuotationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { token, user } = useAuth();
@@ -88,6 +113,11 @@ export default function QuotationDetailPage() {
   const [quotation, setQuotation] = useState<QuotationDetail | null>(null);
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [availableProducts, setAvailableProducts] = useState<ProductItem[]>([]);
+  const [negotiations, setNegotiations] = useState<NegotiationRequestItem[]>([]);
+  const [resolvingNegId, setResolvingNegId] = useState<string | null>(null);
+  const [activeCounterFormId, setActiveCounterFormId] = useState<string | null>(null);
+  const [customDiscount, setCustomDiscount] = useState<string>('');
+  const [customComment, setCustomComment] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,6 +142,7 @@ export default function QuotationDetailPage() {
     if (id && token) {
       fetchQuotation();
       fetchAvailableProducts();
+      fetchNegotiations();
     }
   }, [id, token]);
 
@@ -123,6 +154,63 @@ export default function QuotationDetailPage() {
       setRecommendations([]);
     }
   }, [id, token, quotation?.lines.length]);
+
+  async function fetchNegotiations() {
+    try {
+      const res = await fetch(`/api/v1/internal/quotations/${id}/negotiations`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNegotiations(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch negotiations:', err);
+    }
+  }
+
+  async function handleResolveNegotiation(
+    negotiationId: string,
+    accepted: boolean,
+    discountVal?: number,
+    commentVal?: string
+  ) {
+    try {
+      setResolvingNegId(negotiationId);
+      const res = await fetch(`/api/v1/internal/quotations/${id}/negotiations/${negotiationId}/respond`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accepted,
+          adjustedDiscount: discountVal !== undefined ? Number(discountVal) : undefined,
+          comment: commentVal || (accepted ? 'Accepted by sales representative' : 'Declined by sales representative'),
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to respond to negotiation');
+      }
+
+      const data = await res.json();
+      setActionFeedback(data.message || (accepted ? 'Negotiation accepted & quotation updated' : 'Negotiation rejected'));
+      setActiveCounterFormId(null);
+      setCustomDiscount('');
+      setCustomComment('');
+      await fetchQuotation();
+      await fetchNegotiations();
+    } catch (err: any) {
+      alert(err.message || 'Failed to resolve negotiation');
+    } finally {
+      setResolvingNegId(null);
+    }
+  }
 
   async function fetchQuotation() {
     try {
@@ -535,6 +623,252 @@ export default function QuotationDetailPage() {
         </div>
       </div>
 
+      {/* Customer Negotiation & Portal Requests (Lane B Step B3) */}
+      {(negotiations.length > 0 || quotation.status === 'UNDER_NEGOTIATION') && (
+        <div className={`border rounded-2xl p-6 shadow-card transition-all ${
+          quotation.status === 'UNDER_NEGOTIATION'
+            ? 'bg-purple-950/20 border-purple-500/40 shadow-purple-900/10 ring-1 ring-purple-500/20'
+            : 'bg-surface-card border-surface-border'
+        }`}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-surface-border/80">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                <MessageSquare size={18} />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>Customer Negotiation & Portal Requests</span>
+                  {quotation.status === 'UNDER_NEGOTIATION' && (
+                    <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 animate-pulse">
+                      Live Negotiation Active
+                    </span>
+                  )}
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Direct requests, line-item counter-offers, and comments from the customer portal.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono px-3 py-1 rounded-lg bg-surface-elevated text-slate-300 border border-surface-border">
+                {negotiations.filter((n) => n.status === 'OPEN').length} Pending Action
+              </span>
+            </div>
+          </div>
+
+          {negotiations.length === 0 ? (
+            <div className="py-6 px-4 text-center rounded-xl bg-surface-base/60 border border-surface-border text-xs text-slate-400 italic">
+              Quotation is open for negotiation. When the customer submits changes through the portal, they will appear here.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {negotiations.map((item) => {
+                const isOpen = item.status === 'OPEN';
+                const isCounter = item.negotiationType === 'COUNTER_DISCOUNT';
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-4 rounded-xl border transition-all ${
+                      isOpen
+                        ? 'bg-surface-elevated/70 border-purple-500/30 shadow-sm'
+                        : 'bg-surface-base/50 border-surface-border opacity-85'
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                          isCounter
+                            ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
+                            : item.negotiationType === 'CHANGE_REQUEST'
+                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                            : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                        }`}>
+                          {item.negotiationType.replace(/_/g, ' ')}
+                        </span>
+
+                        <span className="text-xs text-slate-300">
+                          by <strong className="text-white">{item.requestedBy ? `${item.requestedBy.firstName} ${item.requestedBy.lastName}` : 'Customer'}</strong>
+                        </span>
+
+                        <span className="text-[11px] text-slate-500">
+                          ({new Date(item.createdAt).toLocaleString()})
+                        </span>
+                      </div>
+
+                      <span className={`text-xs font-mono px-2.5 py-0.5 rounded-md border ${
+                        item.status === 'OPEN'
+                          ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                          : item.status === 'ACCEPTED'
+                          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                          : 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                      }`}>
+                        {item.status}
+                      </span>
+                    </div>
+
+                    {/* Details row */}
+                    <div className="space-y-2 mb-3">
+                      {item.quotationLine && (
+                        <div className="text-xs text-slate-300 bg-surface-base/80 px-3 py-1.5 rounded-lg border border-surface-border flex items-center justify-between flex-wrap gap-2">
+                          <span>Target Line: <strong className="text-white">{item.quotationLine.product?.name || item.quotationLine.descriptionSnapshot}</strong></span>
+                          <span className="font-mono text-slate-400">
+                            Current Line Discount: <strong className="text-amber-400">{Number(item.quotationLine.discountPercent).toFixed(1)}%</strong>
+                          </span>
+                        </div>
+                      )}
+
+                      {item.requestedDiscountPercent !== null && item.requestedDiscountPercent !== undefined && (
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-purple-500/10 border border-purple-500/25 text-xs text-purple-200">
+                          <CornerDownRight size={14} className="text-purple-400 shrink-0" />
+                          <span>Customer Proposed Counter Discount: <strong className="text-white font-mono text-sm underline">{Number(item.requestedDiscountPercent).toFixed(1)}%</strong></span>
+                        </div>
+                      )}
+
+                      {item.requestedDeliveryDate && (
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/25 text-xs text-blue-200">
+                          <Clock size={14} className="text-blue-400 shrink-0" />
+                          <span>Customer Requested Delivery Date: <strong className="text-white font-mono">{new Date(item.requestedDeliveryDate).toLocaleDateString()}</strong></span>
+                        </div>
+                      )}
+
+                      {item.message && (
+                        <p className="text-xs text-slate-300 italic bg-surface-base px-3 py-2 rounded-lg border border-surface-border">
+                          &ldquo;{item.message}&rdquo;
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Rep Resolution Controls (Only if OPEN) */}
+                    {isOpen && (
+                      <div className="pt-2 border-t border-surface-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() =>
+                              handleResolveNegotiation(
+                                item.id,
+                                true,
+                                item.requestedDiscountPercent !== null && item.requestedDiscountPercent !== undefined
+                                  ? Number(item.requestedDiscountPercent)
+                                  : undefined,
+                                'Customer proposal accepted by Sales Rep'
+                              )
+                            }
+                            disabled={resolvingNegId === item.id}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                          >
+                            <Check size={13} />
+                            <span>
+                              Accept {item.requestedDiscountPercent ? `(${item.requestedDiscountPercent}%)` : 'Proposal'}
+                            </span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setActiveCounterFormId(activeCounterFormId === item.id ? null : item.id);
+                              setCustomDiscount(
+                                item.requestedDiscountPercent !== null && item.requestedDiscountPercent !== undefined
+                                  ? String(item.requestedDiscountPercent)
+                                  : ''
+                              );
+                            }}
+                            disabled={resolvingNegId === item.id}
+                            className="px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Edit3 size={13} />
+                            <span>Adjust & Counter</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleResolveNegotiation(item.id, false, undefined, 'Declined by Sales Rep')}
+                            disabled={resolvingNegId === item.id}
+                            className="px-3 py-1.5 bg-surface-base hover:bg-rose-950/40 text-slate-300 hover:text-rose-300 border border-surface-border text-xs font-medium rounded-lg transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <X size={13} />
+                            <span>Decline</span>
+                          </button>
+                        </div>
+
+                        {resolvingNegId === item.id && (
+                          <div className="flex items-center gap-2 text-xs text-brand-400 font-mono">
+                            <Loader2 size={13} className="animate-spin" />
+                            <span>Processing & recalculating governance...</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Inline Counter / Adjust Form */}
+                    {isOpen && activeCounterFormId === item.id && (
+                      <div className="mt-3 p-3.5 rounded-lg bg-surface-base border border-purple-500/40 space-y-3 animate-fade-in">
+                        <div className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                          <Edit3 size={12} />
+                          <span>Specify Custom Counter-Terms</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] text-slate-400 mb-1 font-medium">
+                              Approved Discount % on line:
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              value={customDiscount}
+                              onChange={(e) => setCustomDiscount(e.target.value)}
+                              placeholder="e.g. 20"
+                              className="w-full bg-surface-card border border-surface-border rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-brand-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] text-slate-400 mb-1 font-medium">
+                              Response Note for Customer:
+                            </label>
+                            <input
+                              type="text"
+                              value={customComment}
+                              onChange={(e) => setCustomComment(e.target.value)}
+                              placeholder="e.g. Best offer we can authorize within margin rules"
+                              className="w-full bg-surface-card border border-surface-border rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setActiveCounterFormId(null)}
+                            className="px-3 py-1 text-xs text-slate-400 hover:text-slate-200"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleResolveNegotiation(
+                                item.id,
+                                true,
+                                customDiscount ? parseFloat(customDiscount) : undefined,
+                                customComment || 'Custom counter-terms applied by Sales Rep'
+                              )
+                            }
+                            disabled={resolvingNegId === item.id}
+                            className="px-3 py-1 bg-brand-600 hover:bg-brand-500 text-white rounded-md text-xs font-semibold"
+                          >
+                            Apply Terms & Re-Evaluate
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Main Grid: Line Items & Totals */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Line Items */}
@@ -579,8 +913,29 @@ export default function QuotationDetailPage() {
                 <tbody className="divide-y divide-surface-border text-slate-300 text-xs">
                   {quotation.lines.length === 0 ? (
                     <tr>
-                      <td colSpan={canEdit ? 8 : 7} className="px-6 py-12 text-center text-slate-500 font-mono">
-                        No line items yet. Click &quot;Add Item&quot; to configure pricing lines.
+                      <td colSpan={canEdit ? 8 : 7} className="px-6 py-14 text-center">
+                        <div className="flex flex-col items-center justify-center max-w-md mx-auto space-y-3.5">
+                          <div className="w-12 h-12 rounded-2xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 shadow-inner">
+                            <Plus size={24} />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-white tracking-tight">Quotation Initialized — Ready for Products</h4>
+                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                              This quotation container is currently empty. Choose from over <strong className="text-brand-400 font-semibold">216 active catalog products</strong> (hardware, cloud subscriptions, software licenses &amp; consulting services) to configure line items.
+                            </p>
+                          </div>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              id="btn-empty-add-item"
+                              onClick={() => setIsAddLineModalOpen(true)}
+                              className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-lg shadow-brand-600/30 transition hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                              <Plus size={14} />
+                              <span>Add Line Item from Catalog</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ) : (

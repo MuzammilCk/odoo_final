@@ -77,6 +77,16 @@ export default function DiscountConfigPage() {
   const [ruleCategoryId, setRuleCategoryId] = useState('');
   const [ruleMaxDiscount, setRuleMaxDiscount] = useState('15');
 
+  // Customer registration modal state
+  const [isCustModalOpen, setIsCustModalOpen] = useState(false);
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustEmail, setNewCustEmail] = useState('');
+  const [newCustFirstName, setNewCustFirstName] = useState('');
+  const [newCustLastName, setNewCustLastName] = useState('');
+  const [newCustTierId, setNewCustTierId] = useState('');
+  const [custSaving, setCustSaving] = useState(false);
+  const [custError, setCustError] = useState<string | null>(null);
+
   useEffect(() => {
     if (token) {
       loadAllConfig();
@@ -278,6 +288,53 @@ export default function DiscountConfigPage() {
       setFeedback((err as Error).message);
     } finally {
       setTierSaving((prev) => ({ ...prev, [customerId]: false }));
+    }
+  }
+
+  async function handleRegisterCustomer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newCustName.trim() || !newCustEmail.trim()) {
+      setCustError('Company name and contact email are required');
+      return;
+    }
+
+    try {
+      setCustSaving(true);
+      setCustError(null);
+      const res = await fetch('/api/v1/internal/customers', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newCustName.trim(),
+          contactEmail: newCustEmail.trim(),
+          contactFirstName: newCustFirstName.trim() || undefined,
+          contactLastName: newCustLastName.trim() || undefined,
+          discountTierId: newCustTierId || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to register customer');
+      }
+
+      setCustomers((prev) => [...prev, data.customer]);
+      setTierEdits((prev) => ({ ...prev, [data.customer.id]: data.customer.discountTierId }));
+      setIsCustModalOpen(false);
+      setNewCustName('');
+      setNewCustEmail('');
+      setNewCustFirstName('');
+      setNewCustLastName('');
+      setNewCustTierId('');
+      setFeedback(`Customer "${data.customer.name}" registered and portal user provisioned successfully.`);
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (err: unknown) {
+      setCustError((err as Error).message);
+    } finally {
+      setCustSaving(false);
     }
   }
 
@@ -539,9 +596,21 @@ export default function DiscountConfigPage() {
                 Reassign a customer's discount tier — changes take effect on the next quotation
               </p>
             </div>
-            <span className="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider rounded bg-brand-900/40 border border-brand-700/50 text-brand-300">
-              Admin Only
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider rounded bg-brand-900/40 border border-brand-700/50 text-brand-300">
+                Admin Only
+              </span>
+              <button
+                id="btn-admin-register-cust"
+                onClick={() => {
+                  setIsCustModalOpen(true);
+                  setCustError(null);
+                }}
+                className="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-lg transition shadow-sm"
+              >
+                + Register Customer
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -765,6 +834,132 @@ export default function DiscountConfigPage() {
                   className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg"
                 >
                   Save Ceiling
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Register Customer Modal (Admin / Sales Rep) */}
+      {isCustModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-white">Register New Customer</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Provision client organization &amp; customer portal user credentials
+                </p>
+              </div>
+              <button
+                onClick={() => setIsCustModalOpen(false)}
+                className="text-gray-400 hover:text-white text-lg"
+              >
+                &times;
+              </button>
+            </div>
+
+            {custError && (
+              <div className="p-3 bg-rose-950/50 border border-rose-800 rounded-lg text-rose-300 text-xs">
+                {custError}
+              </div>
+            )}
+
+            <form onSubmit={handleRegisterCustomer} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-300 uppercase mb-1">
+                  Company / Organization Name <span className="text-brand-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Wayne Enterprises"
+                  value={newCustName}
+                  onChange={(e) => setNewCustName(e.target.value)}
+                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 uppercase mb-1">
+                    Contact First Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="First name"
+                    value={newCustFirstName}
+                    onChange={(e) => setNewCustFirstName(e.target.value)}
+                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 uppercase mb-1">
+                    Contact Last Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Last name"
+                    value={newCustLastName}
+                    onChange={(e) => setNewCustLastName(e.target.value)}
+                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-300 uppercase mb-1">
+                  Primary Contact Email (Portal Login) <span className="text-brand-400">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="contact@company.com"
+                  value={newCustEmail}
+                  onChange={(e) => setNewCustEmail(e.target.value)}
+                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Initial portal password will be generated as <code className="text-gray-400">demo123</code>.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-300 uppercase mb-1">
+                  Initial Discount Tier
+                </label>
+                <select
+                  value={newCustTierId}
+                  onChange={(e) => setNewCustTierId(e.target.value)}
+                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
+                >
+                  <option value="">Default (Bronze Tier / Lowest Ceiling)</option>
+                  {tiers
+                    .filter((t) => t.isActive)
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({Number(t.defaultDiscountCeiling).toFixed(0)}% default ceiling)
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => setIsCustModalOpen(false)}
+                  disabled={custSaving}
+                  className="px-4 py-2 bg-gray-800 text-gray-300 text-sm rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={custSaving}
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg"
+                >
+                  {custSaving ? 'Registering...' : 'Register Customer'}
                 </button>
               </div>
             </form>

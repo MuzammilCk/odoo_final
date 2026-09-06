@@ -13,6 +13,8 @@
 
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
+import bcrypt from 'bcrypt';
+import { UserRole, AuditAction } from '@prisma/client';
 import { authenticateToken } from '../auth/auth.middleware.js';
 import { requireRole } from '../auth/rbac.middleware.js';
 import { prisma } from '../../lib/prisma.js';
@@ -69,6 +71,15 @@ const updateApprovalConfigSchema = z.object({
 
 const updateCustomerTierSchema = z.object({
   discountTierId: z.string().uuid('discountTierId must be a valid UUID'),
+});
+
+const createCustomerSchema = z.object({
+  name: z.string().min(2, 'Company name is required'),
+  discountTierId: z.string().uuid().optional(),
+  contactEmail: z.string().email('Valid contact email is required'),
+  contactFirstName: z.string().optional(),
+  contactLastName: z.string().optional(),
+  password: z.string().min(6).optional(),
 });
 
 // ── Discount Tiers Endpoints ────────────────────────────────────────────────
@@ -277,12 +288,12 @@ configRouter.put(
   },
 );
 
-// ── Customer Tier Management (Admin Only) ───────────────────────────────────
+// ── Customer Tier Management & Registration ──────────────────────────────────
 
 // GET /customers — List all customers with current discount tier
 configRouter.get(
   '/customers',
-  requireRole('ADMIN'),
+  requireRole('ADMIN', 'SALES_REP', 'MANAGER', 'FINANCE_OPS'),
   async (_req: Request, res: Response): Promise<void> => {
     try {
       const customers = await prisma.customer.findMany({
@@ -290,10 +301,120 @@ configRouter.get(
           discountTier: {
             select: { id: true, name: true, defaultDiscountCeiling: true },
           },
+          users: {
+            select: { id: true, email: true, firstName: true, lastName: true, role: true, isActive: true },
+          },
         },
         orderBy: { name: 'asc' },
       });
       res.json({ customers });
+    } catch (err: unknown) {
+      const e = err as { message: string };
+      res.status(500).json({ error: e.message });
+    }
+  },
+);
+
+// POST /customers — Register a new customer organization & portal login account
+// Allowed roles: ADMIN, SALES_REP, MANAGER
+configRouter.post(
+  '/customers',
+  requireRole('ADMIN', 'SALES_REP', 'MANAGER'),
+  async (req: Request, res: Response): Promise<void> => {
+    const parsed = createCustomerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() });
+      return;
+    }
+
+    const { name, discountTierId, contactEmail, contactFirstName, contactLastName, password } = parsed.data;
+
+    try {
+      // 1. Check duplicate company name
+      const existingCustomer = await prisma.customer.findFirst({
+        where: { name: { equals: name.trim(), mode: 'insensitive' } },
+      });
+      if (existingCustomer) {
+        res.status(409).json({ error: `A customer organization named "${name.trim()}" already exists` });
+        return;
+      }
+
+      // 2. Check duplicate user email
+      const existingUser = await prisma.user.findUnique({
+        where: { email: contactEmail.trim().toLowerCase() },
+      });
+      if (existingUser) {
+        res.status(409).json({ error: `A user account with email "${contactEmail.trim().toLowerCase()}" already exists` });
+        return;
+      }
+
+      // 3. Resolve discount tier
+      let finalTierId = discountTierId;
+      if (!finalTierId) {
+        const defaultTier =
+          (await prisma.discountTier.findFirst({ where: { name: 'Bronze' } })) ??
+          (await prisma.discountTier.findFirst({ orderBy: { defaultDiscountCeiling: 'asc' } }));
+        if (!defaultTier) {
+          res.status(500).json({ error: 'No active discount tier available to assign to customer' });
+          return;
+        }
+        finalTierId = defaultTier.id;
+      }
+
+      // 4. Create customer organization & portal user account
+      const customer = await prisma.customer.create({
+        data: {
+          name: name.trim(),
+          discountTierId: finalTierId,
+          isActive: true,
+        },
+        include: {
+          discountTier: {
+            select: { id: true, name: true, defaultDiscountCeiling: true },
+          },
+        },
+      });
+
+      const passwordHash = await bcrypt.hash(password || 'demo123', 12);
+      const user = await prisma.user.create({
+        data: {
+          email: contactEmail.trim().toLowerCase(),
+          passwordHash,
+          role: UserRole.CUSTOMER,
+          firstName: contactFirstName?.trim() || name.trim(),
+          lastName: contactLastName?.trim() || 'Account',
+          customerId: customer.id,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          customerId: true,
+          isActive: true,
+        },
+      });
+
+      // 5. Audit log
+      if (req.user?.userId) {
+        await prisma.auditLog.create({
+          data: {
+            actorUserId: req.user.userId,
+            action: AuditAction.USER_CREATED,
+            entityType: 'customer',
+            entityId: customer.id,
+            metadata: {
+              customerName: customer.name,
+              contactEmail: user.email,
+              registeredByRole: req.user.role,
+            },
+          },
+        });
+      }
+
+      res.status(201).json({ customer, user, message: 'Customer registered and portal account created successfully' });
     } catch (err: unknown) {
       const e = err as { message: string };
       res.status(500).json({ error: e.message });

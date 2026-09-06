@@ -16,11 +16,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Search, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, ChevronRight, FileSpreadsheet, Building2, UserPlus, Check } from 'lucide-react';
 import { StatusBadge, RiskBadge } from '../../components/ui/Badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/Table';
 import { Modal } from '../../components/ui/Modal';
-import { Select } from '../../components/ui/Input';
+import { Select, Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Tabs } from '../../components/ui/Tabs';
 import { SkeletonTable } from '../../components/ui/Skeleton';
@@ -74,6 +74,69 @@ export default function QuotationListPage() {
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  // Register Customer inline state (Sales Rep provisions customer)
+  const [isRegisteringCustomer, setIsRegisteringCustomer] = useState(false);
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustEmail, setNewCustEmail] = useState('');
+  const [newCustFirstName, setNewCustFirstName] = useState('');
+  const [newCustLastName, setNewCustLastName] = useState('');
+  const [registering, setRegistering] = useState(false);
+  const [registerSuccess, setRegisterSuccess] = useState<string | null>(null);
+
+  async function handleRegisterCustomer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newCustName.trim()) {
+      setCreateError('Company / organization name is required');
+      return;
+    }
+    if (!newCustEmail.trim()) {
+      setCreateError('Primary contact email is required for customer portal login');
+      return;
+    }
+
+    try {
+      setRegistering(true);
+      setCreateError(null);
+      const res = await fetch('/api/v1/internal/customers', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newCustName.trim(),
+          contactEmail: newCustEmail.trim(),
+          contactFirstName: newCustFirstName.trim() || undefined,
+          contactLastName: newCustLastName.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to register customer');
+      }
+
+      const createdCustomer: Customer = {
+        id: data.customer.id,
+        name: data.customer.name,
+        discountTier: data.customer.discountTier,
+      };
+
+      setCustomers((prev) => [createdCustomer, ...prev]);
+      setSelectedCustomerId(createdCustomer.id);
+      setIsRegisteringCustomer(false);
+      setNewCustName('');
+      setNewCustEmail('');
+      setNewCustFirstName('');
+      setNewCustLastName('');
+      setRegisterSuccess(`Registered "${createdCustomer.name}" successfully! Portal login credentials generated.`);
+    } catch (err: unknown) {
+      setCreateError((err as Error).message);
+    } finally {
+      setRegistering(false);
+    }
+  }
 
   useEffect(() => {
     fetchQuotations();
@@ -299,54 +362,161 @@ export default function QuotationListPage() {
       {/* New Quotation Modal */}
       <Modal
         open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Create Commercial Quotation"
-        description="Initialize a new deal contract in draft state"
-        size="sm"
+        onClose={() => {
+          setIsModalOpen(false);
+          setIsRegisteringCustomer(false);
+          setCreateError(null);
+        }}
+        title={isRegisteringCustomer ? 'Register Customer & Portal Access' : 'Create Commercial Quotation'}
+        description={
+          isRegisteringCustomer
+            ? 'Provision a new client organization and portal login credentials'
+            : 'Initialize a new deal contract in draft state'
+        }
+        size={isRegisteringCustomer ? 'md' : 'sm'}
         footer={
-          <>
-            <Button variant="ghost" onClick={() => setIsModalOpen(false)} disabled={creating}>
-              Cancel
-            </Button>
-            <Button
-              id="create-quote-submit"
-              form="create-quote-form"
-              type="submit"
-              loading={creating}
-            >
-              Create Quote
-            </Button>
-          </>
+          isRegisteringCustomer ? (
+            <>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setIsRegisteringCustomer(false);
+                  setCreateError(null);
+                }}
+                disabled={registering}
+              >
+                Back to Select
+              </Button>
+              <Button
+                id="register-customer-submit"
+                form="register-customer-form"
+                type="submit"
+                loading={registering}
+                leftIcon={<UserPlus size={14} />}
+              >
+                Register &amp; Select
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setIsModalOpen(false)} disabled={creating}>
+                Cancel
+              </Button>
+              <Button
+                id="create-quote-submit"
+                form="create-quote-form"
+                type="submit"
+                loading={creating}
+              >
+                Create Quote
+              </Button>
+            </>
+          )
         }
       >
         {createError && (
           <AlertBanner variant="error" message={createError} className="mb-4" />
         )}
-        <form id="create-quote-form" onSubmit={handleCreateQuotation} className="space-y-4">
-          <Select
-            label="Account / Customer"
-            id="modal-customer"
-            value={selectedCustomerId}
-            onChange={(e) => setSelectedCustomerId(e.target.value)}
-          >
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} {c.discountTier ? `(${c.discountTier.name} Tier)` : ''}
-              </option>
-            ))}
-          </Select>
 
-          <Select
-            label="Contract Currency"
-            id="modal-currency"
-            value={selectedCurrency}
-            onChange={(e) => setSelectedCurrency(e.target.value)}
-          >
-            <option value="USD">USD ($) — United States Dollar</option>
-            <option value="EUR">EUR (€) — Euro</option>
-            <option value="GBP">GBP (£) — British Pound</option>
-          </Select>
-        </form>
+        {registerSuccess && (
+          <div className="mb-4 p-3 rounded-xl bg-emerald-950/50 border border-emerald-800/80 text-emerald-300 text-xs flex items-center gap-2">
+            <Check size={15} className="text-emerald-400 shrink-0" />
+            <span>{registerSuccess}</span>
+          </div>
+        )}
+
+        {isRegisteringCustomer ? (
+          <form id="register-customer-form" onSubmit={handleRegisterCustomer} className="space-y-4">
+            <Input
+              label="Company / Organization Name"
+              id="new-customer-name"
+              required
+              autoComplete="organization"
+              placeholder="e.g. Acme Corporation, Wayne Enterprises"
+              value={newCustName}
+              onChange={(e) => setNewCustName(e.target.value)}
+              prefixIcon={<Building2 size={14} />}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Contact First Name"
+                id="new-customer-fn"
+                autoComplete="given-name"
+                placeholder="First name"
+                value={newCustFirstName}
+                onChange={(e) => setNewCustFirstName(e.target.value)}
+              />
+              <Input
+                label="Contact Last Name"
+                id="new-customer-ln"
+                autoComplete="family-name"
+                placeholder="Last name"
+                value={newCustLastName}
+                onChange={(e) => setNewCustLastName(e.target.value)}
+              />
+            </div>
+
+            <Input
+              label="Contact Portal Email (Login Username)"
+              id="new-customer-email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="contact@company.com"
+              value={newCustEmail}
+              onChange={(e) => setNewCustEmail(e.target.value)}
+              hint="Customer portal credentials will be generated with standard demo password (demo123)"
+            />
+          </form>
+        ) : (
+          <form id="create-quote-form" onSubmit={handleCreateQuotation} className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  htmlFor="modal-customer"
+                  className="block text-xs font-semibold text-slate-300 uppercase tracking-wider"
+                >
+                  Account / Customer
+                </label>
+                <button
+                  type="button"
+                  id="btn-register-new-customer"
+                  onClick={() => {
+                    setIsRegisteringCustomer(true);
+                    setCreateError(null);
+                  }}
+                  className="text-xs text-brand-400 hover:text-brand-300 font-semibold flex items-center gap-1 transition"
+                >
+                  <UserPlus size={13} />
+                  <span>+ Register New Customer</span>
+                </button>
+              </div>
+              <Select
+                id="modal-customer"
+                value={selectedCustomerId}
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+              >
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.discountTier ? `(${c.discountTier.name} Tier)` : ''}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <Select
+              label="Contract Currency"
+              id="modal-currency"
+              value={selectedCurrency}
+              onChange={(e) => setSelectedCurrency(e.target.value)}
+            >
+              <option value="USD">USD ($) — United States Dollar</option>
+              <option value="EUR">EUR (€) — Euro</option>
+              <option value="GBP">GBP (£) — British Pound</option>
+            </Select>
+          </form>
+        )}
       </Modal>
     </div>
   );

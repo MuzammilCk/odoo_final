@@ -83,7 +83,7 @@ export default function LoginPage() {
             <div className="text-lg font-bold text-white tracking-tight">
               Deal<span className="text-brand-400">Flow</span>360
             </div>
-            <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">CPQ Engine</div>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">SALES OPERATIONS</div>
           </div>
         </div>
 
@@ -91,18 +91,19 @@ export default function LoginPage() {
         <div className="relative space-y-6">
           <div>
             <h2 className="text-2xl font-bold text-white tracking-tight leading-snug">
-              The commercial intelligence
-              <br />platform for serious ops teams
+              The intelligent sales operations
+              <br />platform for modern B2B teams
             </h2>
-            <p className="mt-3 text-sm text-slate-400 leading-relaxed max-w-xs">
-              Quote, approve, fulfill, bill — all governed by a single source of commercial truth.
+            <p className="mt-3 text-sm text-slate-400 leading-relaxed max-w-sm">
+              Quote, approve, negotiate, fulfill, and bill —
+              <br />all governed by a single source of truth.
             </p>
           </div>
           <div className="space-y-3">
             {[
-              'Multi-tier approval workflows with risk gates',
-              'Real-time margin governance & discount control',
-              'Automated subscription billing & revenue recognition',
+              'Multi-tier approval workflows with risk-based routing',
+              'Live margin governance and sales recommendations',
+              'Multi-warehouse fulfillment and hybrid billing',
             ].map(feature => (
               <div key={feature} className="flex items-start gap-2.5">
                 <span className="w-4 h-4 rounded-full bg-brand-500/15 border border-brand-500/30 flex items-center justify-center shrink-0 mt-0.5">

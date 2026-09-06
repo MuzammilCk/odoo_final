@@ -10,6 +10,8 @@ interface NegotiationItem {
   requestedDeliveryDate?: string | null;
   status: string;
   createdAt: string;
+  resolvedAt?: string | null;
+  resolvedBy?: { firstName: string; lastName: string; email?: string } | null;
   quotationLine?: {
     id: string;
     descriptionSnapshot: string;
@@ -263,7 +265,15 @@ export default function NegotiationPanel({
                     )}
                   </div>
                   <p className="text-gray-300">{item.message}</p>
-                  <p className="text-[10px] text-gray-500">{new Date(item.createdAt).toLocaleString()}</p>
+                  <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                    <span>Submitted: {new Date(item.createdAt).toLocaleString()}</span>
+                    {item.resolvedBy && (
+                      <span className="text-indigo-300 font-medium">
+                        • Reviewed by {item.resolvedBy.firstName} {item.resolvedBy.lastName}
+                        {item.resolvedAt ? ` on ${new Date(item.resolvedAt).toLocaleDateString()}` : ''}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center">

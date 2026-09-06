@@ -51,6 +51,14 @@ authRouter.post('/signup', async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
+  // Public signup is restricted to internal Sales Representatives
+  if (parsed.data.role === 'CUSTOMER') {
+    res.status(403).json({
+      error: 'Customer organization accounts cannot be created via public signup. Registration must be performed by an Administrator or Sales Representative.',
+    });
+    return;
+  }
+
   try {
     const result = await AuthService.signup(
       parsed.data.email,

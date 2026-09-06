@@ -276,6 +276,22 @@ portalRouter.get(
           status: true,
           resolvedAt: true,
           createdAt: true,
+          requestedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          resolvedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
           quotationLine: {
             select: {
               id: true,

@@ -11,12 +11,12 @@ async function main() {
     console.log(u.email, u.role, 'matches demo123:', okDemo, 'matches password123:', okPass);
   }
 
-  // Set all user passwords to hash of password123
-  const newHash = await bcrypt.hash('password123', 10);
+  // Set all user passwords to hash of demo123
+  const newHash = await bcrypt.hash('demo123', 10);
   await p.user.updateMany({
     data: { passwordHash: newHash }
   });
-  console.log('Updated all users to password123!');
+  console.log('Updated all users to demo123!');
 
   await p.$disconnect();
 }
