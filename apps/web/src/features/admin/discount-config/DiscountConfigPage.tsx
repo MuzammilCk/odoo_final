@@ -71,11 +71,11 @@ export default function DiscountConfigPage() {
   // Modal states
   const [isTierModalOpen, setIsTierModalOpen] = useState(false);
   const [tierName, setTierName] = useState('');
-  const [tierCeiling, setTierCeiling] = useState(10);
+  const [tierCeiling, setTierCeiling] = useState('10');
 
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [ruleCategoryId, setRuleCategoryId] = useState('');
-  const [ruleMaxDiscount, setRuleMaxDiscount] = useState(15);
+  const [ruleMaxDiscount, setRuleMaxDiscount] = useState('15');
 
   useEffect(() => {
     if (token) {
@@ -490,6 +490,7 @@ export default function DiscountConfigPage() {
                 type="number"
                 disabled={!isAdmin}
                 value={approvalConfig.mediumMaxScore}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) =>
                   setApprovalConfig({ ...approvalConfig, mediumMaxScore: Number(e.target.value) })
                 }
@@ -687,7 +688,8 @@ export default function DiscountConfigPage() {
                   step="0.1"
                   required
                   value={tierCeiling}
-                  onChange={(e) => setTierCeiling(Number(e.target.value))}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setTierCeiling(e.target.value)}
                   className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-brand-500"
                 />
               </div>
@@ -745,7 +747,8 @@ export default function DiscountConfigPage() {
                   step="0.1"
                   required
                   value={ruleMaxDiscount}
-                  onChange={(e) => setRuleMaxDiscount(Number(e.target.value))}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setRuleMaxDiscount(e.target.value)}
                   className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-brand-500"
                 />
               </div>

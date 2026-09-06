@@ -13,15 +13,64 @@ import * as ReportExportService from './report-export.service.js';
 export const reportingRouter = Router();
 
 function parseDateFilters(req: Request): ReportingService.ReportFilters {
-  const { startDate, endDate, salesRepId, categoryId, status } = req.query;
+  const {
+    startDate,
+    endDate,
+    period,
+    periodPreset,
+    salesRepId,
+    approvalStatus,
+    categoryId,
+    productId,
+    status,
+  } = req.query;
+
   return {
     startDate: startDate ? new Date(startDate as string) : undefined,
     endDate: endDate ? new Date(endDate as string) : undefined,
+    periodPreset: (periodPreset || period) as any,
     salesRepId: salesRepId as string | undefined,
+    approvalStatus: approvalStatus as string | undefined,
     categoryId: categoryId as string | undefined,
+    productId: productId as string | undefined,
     status: status as string | undefined,
   };
 }
+
+// ── GET /api/v1/internal/reports/filter-options ───────────────────────────────
+
+reportingRouter.get(
+  '/filter-options',
+  authenticateToken,
+  requireRole('ADMIN', 'MANAGER'),
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const data = await ReportingService.getFilterOptions();
+      res.json(data);
+    } catch (err: unknown) {
+      const e = err as { status?: number; message: string };
+      res.status(e.status ?? 500).json({ error: e.message });
+    }
+  },
+);
+
+// ── GET /api/v1/internal/reports/operations-report ────────────────────────────
+
+reportingRouter.get(
+  '/operations-report',
+  authenticateToken,
+  requireRole('ADMIN', 'MANAGER'),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const filters = parseDateFilters(req);
+      const data = await ReportingService.getSalesOperationsReport(filters);
+      res.json(data);
+    } catch (err: unknown) {
+      const e = err as { status?: number; message: string };
+      res.status(e.status ?? 500).json({ error: e.message });
+    }
+  },
+);
 
 // ── GET /api/v1/internal/reports/sales-performance ─────────────────────────────
 
@@ -87,7 +136,7 @@ reportingRouter.get(
     try {
       const { reportType, format } = req.query;
       const filters = parseDateFilters(req);
-      const typeStr = (reportType as string) || 'sales-performance';
+      const typeStr = (reportType as string) || 'operations-report';
       const fmtStr = ((format as string) || 'json').toLowerCase();
 
       let data: unknown;
@@ -95,8 +144,11 @@ reportingRouter.get(
         data = await ReportingService.getProductPerformance(filters);
       } else if (typeStr === 'approval-summary') {
         data = await ReportingService.getApprovalSummary(filters);
-      } else {
+      } else if (typeStr === 'sales-performance') {
         data = await ReportingService.getSalesPerformance(filters);
+      } else {
+        // Default to full operations report
+        data = await ReportingService.getSalesOperationsReport(filters);
       }
 
       const timestamp = new Date().toISOString().slice(0, 10);

@@ -13,6 +13,7 @@
     "build": "npm run build --workspace=apps/web && npm run build --workspace=apps/api",
     "db:migrate": "npx prisma migrate dev",
     "db:seed": "npx prisma db seed",
+    "db:seed:catalog": "npx tsx prisma/seed-catalog.ts",
     "db:reset": "npx prisma migrate reset --force",
     "db:studio": "npx prisma studio"
   },

@@ -4,9 +4,32 @@
 
 @layer base {
   :root {
-    --color-primary: #2563eb;
-    --color-accent: #059669;
-    --color-surface: #0b0f17;
+    /* Brand palette */
+    --color-brand: #3b82f6;
+    --color-brand-light: #60a5fa;
+    --color-deal: #10b981;
+
+    /* Surfaces */
+    --surface-canvas: #090d16;
+    --surface-base: #0d1322;
+    --surface-card: #131b2e;
+    --surface-elevated: #1c2846;
+
+    /* Borders */
+    --border-default: rgba(255, 255, 255, 0.08);
+    --border-subtle: rgba(255, 255, 255, 0.04);
+    --border-hover: rgba(255, 255, 255, 0.16);
+
+    /* Typography */
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    /* Custom easing curves — Emil Kowalski spec */
+    --ease-out-expo: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out-expo: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.15);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   html {
@@ -15,37 +38,111 @@
   }
 
   body {
-    background-color: #0b0f17;
-    color: #f1f5f9;
-    font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+    background-color: var(--surface-canvas);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'ss01', 'ss02', 'cv01';
   }
 
   ::selection {
-    background-color: rgba(37, 99, 235, 0.35);
+    background-color: rgba(59, 130, 246, 0.3);
     color: #ffffff;
   }
 
-  /* Custom subtle dark scrollbars */
+  /* Refined scrollbar — no harsh contrast */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   ::-webkit-scrollbar-track {
-    background: #0b0f17;
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #1e293b;
-    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 99px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  /* Headings use text-wrap balance to prevent widows */
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+  }
+
+  /* Focus ring reset — never use outline-none without replacement */
+  *:focus-visible {
+    outline: 2px solid rgba(59, 130, 246, 0.6);
+    outline-offset: 2px;
   }
 }
 
 @layer utilities {
+  /* Tabular nums for all financial/metric data */
   .tabular-numbers {
     font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
   }
+
+  /* Shimmer loading animation */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.03) 25%,
+      rgba(255, 255, 255, 0.07) 50%,
+      rgba(255, 255, 255, 0.03) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+
+  /* Subtle inner highlight for elevated surfaces */
+  .surface-highlight {
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Noise texture overlay for depth */
+  .noise-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-size: 100px;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* Prefers reduced motion — honor system preference */
+  @media (prefers-reduced-motion: reduce) {
+    .shimmer {
+      animation: none;
+    }
+    * {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }

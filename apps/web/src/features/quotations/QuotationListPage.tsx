@@ -1,11 +1,14 @@
 /**
  * QuotationListPage — Quotations list with filtering and creation modal (Lane A)
- * Upgraded with ui-ux-pro-max design system:
- * - Lucide SVG icons (Plus, Search, X, ChevronRight, Loader2)
- * - Non-wrapping quote numbers with monospace styling & version badges
- * - Tabular currency alignment
- * - Refined filter tabs and search input
- * - Premium modal with backdrop blur
+ *
+ * UI/UX Upgrade — component library integration:
+ * - StatusBadge/RiskBadge semantic helpers (no duplicated badge logic)
+ * - Table, TableHeader, TableBody, TableRow, TableHead, TableCell primitives
+ * - Modal + Select + Button components
+ * - Tabs component for filter tabs
+ * - SkeletonTable for loading state (no centered spinner)
+ * - EmptyState for zero results
+ * - AlertBanner for errors
  *
  * Spec refs: §7.4, §6.6, §3.8
  */
@@ -13,15 +16,17 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import {
-  Plus,
-  Search,
-  X,
-  ChevronRight,
-  Loader2,
-  AlertCircle,
-  FileSpreadsheet,
-} from 'lucide-react';
+import { Plus, Search, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { StatusBadge, RiskBadge } from '../../components/ui/Badge';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/Table';
+import { Modal } from '../../components/ui/Modal';
+import { Select } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
+import { Tabs } from '../../components/ui/Tabs';
+import { SkeletonTable } from '../../components/ui/Skeleton';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { AlertBanner } from '../../components/ui/AlertBanner';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 interface Customer {
   id: string;
@@ -42,6 +47,15 @@ interface QuotationItem {
   customer?: { id: string; name: string };
   salesRep?: { id: string; firstName: string; lastName: string };
 }
+
+const FILTER_TABS = [
+  { id: 'ALL', label: 'All' },
+  { id: 'DRAFT', label: 'Draft' },
+  { id: 'PENDING_APPROVAL', label: 'Pending' },
+  { id: 'APPROVED', label: 'Approved' },
+  { id: 'CONFIRMED', label: 'Confirmed' },
+  { id: 'REJECTED', label: 'Rejected' },
+];
 
 export default function QuotationListPage() {
   const { token, user } = useAuth();
@@ -80,9 +94,7 @@ export default function QuotationListPage() {
         },
       });
 
-      if (!res.ok) {
-        throw new Error('Failed to load quotations');
-      }
+      if (!res.ok) throw new Error('Failed to load quotations');
 
       const data = await res.json();
       setQuotations(data.quotations);
@@ -152,59 +164,6 @@ export default function QuotationListPage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'DRAFT':
-        return {
-          bg: 'bg-slate-800/80 text-slate-300 border-slate-700',
-          dot: 'bg-slate-400',
-        };
-      case 'PENDING_APPROVAL':
-        return {
-          bg: 'bg-amber-500/10 text-amber-300 border-amber-500/25',
-          dot: 'bg-amber-400',
-        };
-      case 'APPROVED':
-        return {
-          bg: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25',
-          dot: 'bg-emerald-400',
-        };
-      case 'CONFIRMED':
-        return {
-          bg: 'bg-blue-500/10 text-blue-300 border-blue-500/25',
-          dot: 'bg-blue-400',
-        };
-      case 'UNDER_NEGOTIATION':
-        return {
-          bg: 'bg-purple-500/10 text-purple-300 border-purple-500/25',
-          dot: 'bg-purple-400',
-        };
-      case 'REJECTED':
-        return {
-          bg: 'bg-rose-500/10 text-rose-300 border-rose-500/25',
-          dot: 'bg-rose-400',
-        };
-      default:
-        return {
-          bg: 'bg-slate-800 text-slate-400 border-slate-700',
-          dot: 'bg-slate-500',
-        };
-    }
-  };
-
-  const getRiskBadge = (risk: string) => {
-    switch (risk) {
-      case 'LOW':
-        return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25';
-      case 'MEDIUM':
-        return 'bg-amber-500/10 text-amber-400 border border-amber-500/25';
-      case 'HIGH':
-        return 'bg-rose-500/10 text-rose-400 border border-rose-500/25';
-      default:
-        return 'bg-slate-800 text-slate-400 border border-slate-700';
-    }
-  };
-
   const filteredQuotations = quotations.filter((q) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -215,245 +174,180 @@ export default function QuotationListPage() {
     );
   });
 
-  const filterTabs = ['ALL', 'DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'CONFIRMED', 'REJECTED'];
+  const tabsWithCounts = FILTER_TABS.map((tab) => ({
+    ...tab,
+    count: tab.id === 'ALL'
+      ? quotations.length
+      : quotations.filter(q => q.status === tab.id).length,
+  }));
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Quotations</h1>
-            <span className="px-2 py-0.5 rounded-full text-xs font-mono bg-surface-elevated text-slate-400 border border-surface-border">
-              {filteredQuotations.length} items
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">Manage, calculate, and govern commercial deal quotes</p>
-        </div>
-        {user?.role === 'SALES_REP' && (
-          <button
-            onClick={openCreateModal}
-            className="px-4 py-2 bg-brand-600 hover:bg-brand-500 active:bg-brand-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-brand-600/25 transition duration-150 flex items-center gap-2 cursor-pointer self-start sm:self-auto"
-          >
-            <Plus size={15} />
-            <span>New Quotation</span>
-          </button>
-        )}
-      </div>
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in">
+      <PageHeader
+        title="Quotations"
+        description="Manage, calculate, and govern commercial deal quotes"
+        actions={
+          user?.role === 'SALES_REP' && (
+            <Button
+              id="new-quotation-btn"
+              onClick={openCreateModal}
+              leftIcon={<Plus size={14} />}
+            >
+              New Quotation
+            </Button>
+          )
+        }
+      />
 
       {/* Filter Tabs & Search Row */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-card border border-surface-border rounded-2xl p-2.5 shadow-card">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          {filterTabs.map((tab) => {
-            const isActive = statusFilter === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => setStatusFilter(tab)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
-                  isActive
-                    ? 'bg-brand-600 text-white shadow-sm shadow-brand-600/30'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-surface-elevated'
-                }`}
-              >
-                {tab.replace('_', ' ')}
-              </button>
-            );
-          })}
-        </div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <Tabs tabs={tabsWithCounts} active={statusFilter} onTabChange={setStatusFilter} />
 
-        {/* Search Input with Prefix Icon */}
-        <div className="relative w-full md:w-72">
+        {/* Search */}
+        <div className="relative w-full md:w-72 shrink-0">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-            <Search size={14} />
+            <Search size={13} aria-hidden="true" />
           </span>
           <input
-            type="text"
+            type="search"
+            id="quotation-search"
             placeholder="Search quote #, customer, rep..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-surface-base border border-surface-border rounded-xl pl-9 pr-3.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
+            autoComplete="off"
+            className="w-full bg-surface-card border border-surface-border rounded-2xl pl-9 pr-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 focus-visible:border-brand-500 transition-all duration-150 shadow-card"
           />
         </div>
       </div>
 
       {/* Quotation Data Table */}
-      <div className="bg-surface-card border border-surface-border rounded-2xl shadow-card overflow-hidden">
-        {loading ? (
-          <div className="p-16 text-center">
-            <Loader2 size={28} className="text-brand-500 animate-spin mx-auto mb-2" />
-            <p className="text-xs text-slate-400 font-mono">Loading quotations telemetry...</p>
-          </div>
-        ) : error ? (
-          <div className="p-8 text-center text-rose-400 text-sm flex items-center justify-center gap-2">
-            <AlertCircle size={18} />
-            <span>{error}</span>
-          </div>
-        ) : filteredQuotations.length === 0 ? (
-          <div className="p-16 text-center space-y-2">
-            <FileSpreadsheet size={32} className="text-slate-600 mx-auto" />
-            <p className="text-slate-400 font-medium text-sm">No quotations found matching your criteria</p>
-            <p className="text-slate-600 text-xs">Try selecting a different filter status or clearing your search</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-surface-base/80 border-b border-surface-border text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                <tr>
-                  <th className="px-5 py-3.5">Quote #</th>
-                  <th className="px-5 py-3.5">Customer</th>
-                  <th className="px-5 py-3.5">Sales Rep</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5">Risk Level</th>
-                  <th className="px-5 py-3.5 text-right">Grand Total</th>
-                  <th className="px-5 py-3.5 text-right">Margin %</th>
-                  <th className="px-5 py-3.5 text-right">Updated</th>
-                  <th className="px-5 py-3.5 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-border text-slate-300 text-xs">
-                {filteredQuotations.map((quote) => {
-                  const badge = getStatusBadge(quote.status);
-                  return (
-                    <tr
-                      key={quote.id}
-                      onClick={() => navigate(`/app/quotations/${quote.id}`)}
-                      className="hover:bg-surface-elevated/50 transition-colors cursor-pointer group"
+      {loading ? (
+        <SkeletonTable rows={6} cols={8} />
+      ) : error ? (
+        <AlertBanner variant="error" title="Failed to load quotations" message={error} live />
+      ) : filteredQuotations.length === 0 ? (
+        <div className="rounded-2xl bg-surface-card border border-surface-border shadow-card">
+          <EmptyState
+            icon={<FileSpreadsheet size={20} />}
+            title="No quotations found"
+            description="Try selecting a different status filter or clearing your search query."
+          />
+        </div>
+      ) : (
+        <div className="rounded-2xl bg-surface-card border border-surface-border shadow-card overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Quote #</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Sales Rep</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Risk</TableHead>
+                <TableHead numeric>Grand Total</TableHead>
+                <TableHead numeric>Margin %</TableHead>
+                <TableHead numeric>Updated</TableHead>
+                <TableHead numeric> </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredQuotations.map((quote) => (
+                <TableRow
+                  key={quote.id}
+                  hoverable
+                  onClick={() => navigate(`/app/quotations/${quote.id}`)}
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 whitespace-nowrap">
+                      <span className="font-mono font-bold text-slate-100">{quote.quoteNumber}</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-elevated border border-surface-border text-slate-400">
+                        v{quote.currentVersion}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{quote.customer?.name ?? '—'}</TableCell>
+                  <TableCell muted>
+                    {quote.salesRep ? `${quote.salesRep.firstName} ${quote.salesRep.lastName}` : '—'}
+                  </TableCell>
+                  <TableCell><StatusBadge status={quote.status} /></TableCell>
+                  <TableCell><RiskBadge level={quote.riskLevel} /></TableCell>
+                  <TableCell numeric mono>
+                    {quote.currencyCode} ${Number(quote.grandTotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell numeric mono muted>
+                    {Number(quote.marginPercent).toFixed(1)}%
+                  </TableCell>
+                  <TableCell numeric mono muted>
+                    {new Date(quote.updatedAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell numeric>
+                    <Link
+                      to={`/app/quotations/${quote.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-brand-400 hover:text-brand-300 px-2 py-1 rounded-lg hover:bg-surface-elevated transition-colors duration-150"
+                      aria-label={`View quotation ${quote.quoteNumber}`}
                     >
-                      <td className="px-5 py-4 whitespace-nowrap min-w-[150px]">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-white group-hover:text-brand-400 transition">
-                            {quote.quoteNumber}
-                          </span>
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-elevated border border-surface-border text-slate-400">
-                            v{quote.currentVersion}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 font-medium text-slate-100">
-                        {quote.customer?.name ?? '—'}
-                      </td>
-                      <td className="px-5 py-4 text-slate-400">
-                        {quote.salesRep ? `${quote.salesRep.firstName} ${quote.salesRep.lastName}` : '—'}
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium rounded-full border ${badge.bg}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-                          <span>{quote.status.replace('_', ' ')}</span>
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider ${getRiskBadge(quote.riskLevel)}`}>
-                          {quote.riskLevel}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-right font-mono font-semibold text-white tabular-numbers whitespace-nowrap">
-                        {quote.currencyCode} ${Number(quote.grandTotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-5 py-4 text-right font-mono text-slate-300 tabular-numbers">
-                        {Number(quote.marginPercent).toFixed(1)}%
-                      </td>
-                      <td className="px-5 py-4 text-right text-xs text-slate-400 font-mono whitespace-nowrap">
-                        {new Date(quote.updatedAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <Link
-                          to={`/app/quotations/${quote.id}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-brand-400 hover:text-brand-300 px-2.5 py-1 rounded-lg hover:bg-surface-elevated transition"
-                        >
-                          <span>View</span>
-                          <ChevronRight size={13} />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* New Quotation Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-surface-card border border-surface-border rounded-2xl max-w-md w-full p-6 shadow-2xl shadow-black/80 space-y-5">
-            <div className="flex items-center justify-between border-b border-surface-border pb-3.5">
-              <div>
-                <h3 className="text-base font-bold text-white tracking-tight">Create Commercial Quotation</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Initialize a new deal contract in draft state</p>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-surface-elevated transition cursor-pointer"
-              >
-                <X size={17} />
-              </button>
-            </div>
-
-            {createError && (
-              <div className="bg-rose-950/40 border border-rose-800/80 text-rose-300 text-xs p-3 rounded-xl flex items-center gap-2">
-                <AlertCircle size={14} className="shrink-0 text-rose-400" />
-                <span>{createError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateQuotation} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Account / Customer
-                </label>
-                <select
-                  value={selectedCustomerId}
-                  onChange={(e) => setSelectedCustomerId(e.target.value)}
-                  className="w-full bg-surface-base border border-surface-border rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
-                >
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} {c.discountTier ? `(${c.discountTier.name} Tier)` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Contract Currency
-                </label>
-                <select
-                  value={selectedCurrency}
-                  onChange={(e) => setSelectedCurrency(e.target.value)}
-                  className="w-full bg-surface-base border border-surface-border rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
-                >
-                  <option value="USD">USD ($) — United States Dollar</option>
-                  <option value="EUR">EUR (€) — Euro</option>
-                  <option value="GBP">GBP (£) — British Pound</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-surface-border">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-surface-elevated hover:bg-slate-700/80 text-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 active:bg-brand-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-md shadow-brand-600/25 transition duration-150 flex items-center gap-2 cursor-pointer"
-                >
-                  {creating && <Loader2 size={14} className="animate-spin" />}
-                  <span>Create Quote</span>
-                </button>
-              </div>
-            </form>
-          </div>
+                      View <ChevronRight size={12} aria-hidden="true" />
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
+
+      {/* New Quotation Modal */}
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Create Commercial Quotation"
+        description="Initialize a new deal contract in draft state"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setIsModalOpen(false)} disabled={creating}>
+              Cancel
+            </Button>
+            <Button
+              id="create-quote-submit"
+              form="create-quote-form"
+              type="submit"
+              loading={creating}
+            >
+              Create Quote
+            </Button>
+          </>
+        }
+      >
+        {createError && (
+          <AlertBanner variant="error" message={createError} className="mb-4" />
+        )}
+        <form id="create-quote-form" onSubmit={handleCreateQuotation} className="space-y-4">
+          <Select
+            label="Account / Customer"
+            id="modal-customer"
+            value={selectedCustomerId}
+            onChange={(e) => setSelectedCustomerId(e.target.value)}
+          >
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} {c.discountTier ? `(${c.discountTier.name} Tier)` : ''}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            label="Contract Currency"
+            id="modal-currency"
+            value={selectedCurrency}
+            onChange={(e) => setSelectedCurrency(e.target.value)}
+          >
+            <option value="USD">USD ($) — United States Dollar</option>
+            <option value="EUR">EUR (€) — Euro</option>
+            <option value="GBP">GBP (£) — British Pound</option>
+          </Select>
+        </form>
+      </Modal>
     </div>
   );
 }

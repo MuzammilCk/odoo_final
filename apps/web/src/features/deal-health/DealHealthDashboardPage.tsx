@@ -1,7 +1,33 @@
+/**
+ * DealHealthDashboardPage — Pipeline Exception Detection (Lane C)
+ *
+ * UI/UX Upgrade:
+ * - StatCards replacing plain gray boxes
+ * - Card component for flag cards
+ * - Proper Button component (no emoji icons)
+ * - AlertBanner for errors and results
+ * - Tabs for filter, SkeletonCard for loading
+ * - EmptyState for zero results
+ * - PageHeader for structure
+ * - ConfirmModal for evaluate action (instead of native alert)
+ *
+ * Spec refs: §6.41–§6.43 (deal health monitoring)
+ */
+
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../lib/api';
+import { Activity, AlertTriangle, TrendingDown, Truck, Scan, CheckCircle2, Bell } from 'lucide-react';
+import { Badge, RiskBadge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { StatCard } from '../../components/ui/StatCard';
+import { Card, CardContent } from '../../components/ui/Card';
+import { Tabs } from '../../components/ui/Tabs';
+import { SkeletonCard } from '../../components/ui/Skeleton';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { AlertBanner } from '../../components/ui/AlertBanner';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 interface DealHealthFlag {
   id: string;
@@ -19,6 +45,19 @@ interface DealHealthFlag {
   };
 }
 
+const FLAG_TYPE_LABELS: Record<string, string> = {
+  STALLED: 'Stalled Deal',
+  DISCOUNT_ANOMALY: 'Discount Anomaly',
+  DELIVERY_SLIPPAGE: 'Delivery Slippage',
+};
+
+const STATUS_TABS = [
+  { id: 'OPEN', label: 'Open' },
+  { id: 'ACKNOWLEDGED', label: 'Acknowledged' },
+  { id: 'RESOLVED', label: 'Resolved' },
+  { id: '', label: 'All Flags' },
+];
+
 export default function DealHealthDashboardPage() {
   const { token, user } = useAuth();
   const [flags, setFlags] = useState<DealHealthFlag[]>([]);
@@ -26,6 +65,7 @@ export default function DealHealthDashboardPage() {
   const [evaluating, setEvaluating] = useState(false);
   const [statusFilter, setStatusFilter] = useState('OPEN');
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   async function loadFlags() {
     setLoading(true);
@@ -34,8 +74,8 @@ export default function DealHealthDashboardPage() {
       const url = statusFilter ? `/deal-health?status=${statusFilter}` : '/deal-health';
       const res = await apiFetch<{ flags: DealHealthFlag[] }>(url, {}, token);
       setFlags(res.flags || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load deal health flags');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to load deal health flags');
     } finally {
       setLoading(false);
     }
@@ -47,18 +87,19 @@ export default function DealHealthDashboardPage() {
 
   async function handleEvaluate() {
     setEvaluating(true);
+    setSuccessMessage(null);
     try {
       const res = await apiFetch<{ stalled: number; anomalies: number; slippage: number; total: number }>(
         '/deal-health/evaluate',
         { method: 'POST' },
         token,
       );
-      alert(
-        `Evaluation complete! Found:\n• ${res.stalled} stalled quotations\n• ${res.anomalies} discount anomalies\n• ${res.slippage} delivery slippages`,
+      setSuccessMessage(
+        `Evaluation complete — Found: ${res.stalled} stalled, ${res.anomalies} discount anomalies, ${res.slippage} delivery slippages`,
       );
       loadFlags();
-    } catch (err: any) {
-      alert(err.message || 'Evaluation failed');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Evaluation failed');
     } finally {
       setEvaluating(false);
     }
@@ -68,8 +109,8 @@ export default function DealHealthDashboardPage() {
     try {
       await apiFetch(`/deal-health/${flagId}/acknowledge`, { method: 'POST' }, token);
       loadFlags();
-    } catch (err: any) {
-      alert(err.message || 'Failed to acknowledge');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to acknowledge');
     }
   }
 
@@ -77,17 +118,17 @@ export default function DealHealthDashboardPage() {
     try {
       await apiFetch(`/deal-health/${flagId}/resolve`, { method: 'POST' }, token);
       loadFlags();
-    } catch (err: any) {
-      alert(err.message || 'Failed to resolve');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to resolve');
     }
   }
 
   async function handleNudge(flagId: string) {
     try {
-      const res = await apiFetch(`/deal-health/${flagId}/nudge`, { method: 'POST' }, token);
-      alert(res.message || 'Escalation nudge sent to sales rep');
-    } catch (err: any) {
-      alert(err.message || 'Failed to send nudge');
+      const res = await apiFetch<{ message?: string }>(`/deal-health/${flagId}/nudge`, { method: 'POST' }, token);
+      setSuccessMessage(res.message || 'Escalation nudge sent to sales rep');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to send nudge');
     }
   }
 
@@ -98,81 +139,65 @@ export default function DealHealthDashboardPage() {
 
   const canManage = user?.role === 'ADMIN' || user?.role === 'MANAGER';
 
-  return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <span>🩺</span> Deal Health & Monitoring
-          </h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Proactive pipeline exception detection: stalled deals, discount anomalies, and shipping slippage (§6.41–§6.43)
-          </p>
-        </div>
+  const tabsWithCounts = STATUS_TABS.map((tab) => ({
+    ...tab,
+    count: tab.id === '' ? flags.length : flags.filter(f => f.status === tab.id).length,
+  }));
 
-        {canManage && (
-          <button
-            onClick={handleEvaluate}
-            disabled={evaluating}
-            className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-2 self-start sm:self-auto disabled:opacity-50"
-          >
-            <span>🔍</span> {evaluating ? 'Analyzing deals...' : 'Run Diagnostics'}
-          </button>
+  return (
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in">
+      <PageHeader
+        title="Deal Health & Monitoring"
+        description="Proactive pipeline exception detection: stalled deals, discount anomalies, and shipping slippage (§6.41–§6.43)"
+        actions={
+          canManage && (
+            <Button
+              id="run-diagnostics-btn"
+              variant="secondary"
+              loading={evaluating}
+              leftIcon={<Scan size={14} />}
+              onClick={handleEvaluate}
+            >
+              Run Diagnostics
+            </Button>
+          )
+        }
+      />
+
+      {successMessage && (
+        <AlertBanner variant="success" message={successMessage} onDismiss={() => setSuccessMessage(null)} />
+      )}
+      {error && <AlertBanner variant="error" message={error} live onDismiss={() => setError(null)} />}
+
+      {/* KPI Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        {loading ? (
+          [0,1,2,3].map(i => <SkeletonCard key={i} />)
+        ) : (
+          <>
+            <StatCard title="Critical / High Risk" value={highSeverityCount} icon={<AlertTriangle size={14} />} accent="rose" />
+            <StatCard title="Stalled Deals" value={stalledCount} icon={<Activity size={14} />} accent="amber" />
+            <StatCard title="Discount Anomalies" value={anomalyCount} icon={<TrendingDown size={14} />} accent="purple" />
+            <StatCard title="Delivery Slippages" value={slippageCount} icon={<Truck size={14} />} accent="blue" />
+          </>
         )}
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Critical / High Risk</p>
-          <p className="text-2xl font-bold text-red-400 mt-1">{highSeverityCount}</p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Stalled Deals</p>
-          <p className="text-2xl font-bold text-amber-400 mt-1">{stalledCount}</p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Discount Anomalies</p>
-          <p className="text-2xl font-bold text-purple-400 mt-1">{anomalyCount}</p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Delivery Slippages</p>
-          <p className="text-2xl font-bold text-blue-400 mt-1">{slippageCount}</p>
-        </div>
-      </div>
-
       {/* Filter Tabs */}
-      <div className="flex gap-2 border-b border-gray-800 pb-3">
-        {['OPEN', 'ACKNOWLEDGED', 'RESOLVED', ''].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setStatusFilter(tab)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              statusFilter === tab
-                ? 'bg-gray-800 text-white border border-gray-700'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            {tab === '' ? 'All Flags' : tab}
-          </button>
-        ))}
-      </div>
-
-      {error && (
-        <div className="p-4 bg-red-950/50 border border-red-800/80 rounded-xl text-red-200 text-sm">
-          {error}
-        </div>
-      )}
+      <Tabs tabs={tabsWithCounts} active={statusFilter} onTabChange={setStatusFilter} />
 
       {/* Flag Cards */}
       {loading ? (
-        <div className="p-12 text-center text-gray-500">Scanning deals for health signals...</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[0,1,2].map(i => <SkeletonCard key={i} />)}
+        </div>
       ) : flags.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-12 text-center text-gray-400">
-          <div className="text-3xl mb-2">🎉</div>
-          <p className="text-lg font-medium text-white">Pipeline is Healthy</p>
-          <p className="text-sm text-gray-500 mt-1">No active deal health alerts found for this filter.</p>
+        <div className="rounded-2xl bg-surface-card border border-surface-border shadow-card">
+          <EmptyState
+            icon={<CheckCircle2 size={20} />}
+            title="Pipeline is Healthy"
+            description="No active deal health alerts found for this filter."
+          />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -180,108 +205,103 @@ export default function DealHealthDashboardPage() {
             const isAnomaly = flag.type === 'DISCOUNT_ANOMALY';
 
             return (
-              <div
-                key={flag.id}
-                className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-sm flex flex-col justify-between space-y-4 hover:border-gray-700 transition"
-              >
-                <div className="space-y-3">
+              <Card key={flag.id} hover>
+                <CardContent className="space-y-4">
+                  {/* Flag header */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`w-2.5 h-2.5 rounded-full ${
-                          flag.severity === 'HIGH'
-                            ? 'bg-red-500'
-                            : flag.severity === 'MEDIUM'
-                            ? 'bg-amber-500'
-                            : 'bg-blue-500'
-                        }`}
-                      ></span>
-                      <span className="text-xs font-mono font-bold tracking-wider uppercase text-gray-300">
-                        {flag.type.replace('_', ' ')}
+                      <span className="text-xs font-mono font-semibold tracking-wide text-slate-300">
+                        {FLAG_TYPE_LABELS[flag.type] ?? flag.type.replace(/_/g, ' ')}
                       </span>
                     </div>
-
-                    <span
-                      className={`px-2 py-0.5 rounded text-[11px] font-medium ${
-                        flag.severity === 'HIGH'
-                          ? 'bg-red-950 text-red-300 border border-red-800'
-                          : flag.severity === 'MEDIUM'
-                          ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                          : 'bg-gray-800 text-gray-300'
-                      }`}
-                    >
-                      {flag.severity} RISK
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <RiskBadge level={flag.severity} />
+                      <Badge variant={
+                        flag.status === 'OPEN' ? 'rose' :
+                        flag.status === 'ACKNOWLEDGED' ? 'amber' :
+                        flag.status === 'RESOLVED' ? 'deal' : 'slate'
+                      } dot>
+                        {flag.status}
+                      </Badge>
+                    </div>
                   </div>
 
+                  {/* Message */}
                   <div>
-                    <h3 className="text-base font-bold text-white leading-snug">{flag.message}</h3>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <h3 className="text-sm font-semibold text-slate-100 leading-snug">{flag.message}</h3>
+                    <p className="text-xs text-slate-400 mt-1">
                       Quote:{' '}
                       <Link
                         to={`/app/billing/${flag.quotationId}`}
-                        className="text-brand-400 font-mono underline hover:text-brand-300"
+                        className="text-brand-400 font-mono hover:text-brand-300 transition-colors"
                       >
                         {flag.quotation?.quoteNumber || flag.quotationId.slice(0, 8)}
-                      </Link>{' '}
-                      &bull; Customer: <strong className="text-gray-300">{flag.quotation?.customer?.name || 'Customer'}</strong>
+                      </Link>
+                      {' · '}
+                      <strong className="text-slate-300">{flag.quotation?.customer?.name || 'Customer'}</strong>
                     </p>
                   </div>
 
-                  {/* Anomaly / Detection Metric Details */}
-                  {(flag.detectedValue !== null && flag.detectedValue !== undefined) && (
-                    <div className="bg-gray-950/60 border border-gray-800/80 rounded-lg p-3 text-xs flex justify-between font-mono">
+                  {/* Detection metric */}
+                  {flag.detectedValue !== null && flag.detectedValue !== undefined && (
+                    <div className="bg-surface-base/80 border border-surface-border rounded-xl p-3 grid grid-cols-2 gap-3 text-xs font-mono">
                       <div>
-                        <span className="text-gray-500 block">Detected Value:</span>
-                        <span className="text-red-400 font-bold">
+                        <span className="text-slate-500 block mb-0.5">Detected Value</span>
+                        <span className="text-rose-400 font-bold">
                           {isAnomaly ? `${Number(flag.detectedValue).toFixed(1)}%` : `${Number(flag.detectedValue)} days`}
                         </span>
                       </div>
                       <div className="text-right">
-                        <span className="text-gray-500 block">Expected Baseline:</span>
-                        <span className="text-emerald-400">
+                        <span className="text-slate-500 block mb-0.5">Expected Baseline</span>
+                        <span className="text-deal-400">
                           {isAnomaly ? `${Number(flag.expectedValue).toFixed(1)}%` : `< ${Number(flag.expectedValue)} days`}
                         </span>
                       </div>
                     </div>
                   )}
 
-                  <div className="text-[11px] text-gray-500">
+                  <p className="text-[11px] text-slate-500 font-mono">
                     Detected: {new Date(flag.detectedAt).toLocaleString()}
-                  </div>
-                </div>
+                  </p>
 
-                {/* Actions */}
-                <div className="flex items-center justify-between pt-3 border-t border-gray-800/80">
-                  <div className="flex items-center gap-2">
-                    {flag.status === 'OPEN' && canManage && (
-                      <button
-                        onClick={() => handleAcknowledge(flag.id)}
-                        className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-xs transition"
-                      >
-                        Acknowledge
-                      </button>
-                    )}
-                    {flag.status !== 'RESOLVED' && canManage && (
-                      <button
-                        onClick={() => handleResolve(flag.id)}
-                        className="px-3 py-1 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/60 rounded text-xs transition"
-                      >
-                        Resolve
-                      </button>
-                    )}
-                  </div>
-
-                  {canManage && flag.status !== 'RESOLVED' && (
-                    <button
-                      onClick={() => handleNudge(flag.id)}
-                      className="px-3 py-1 bg-brand-600/20 hover:bg-brand-600/30 text-brand-300 border border-brand-800/60 rounded text-xs font-medium transition"
-                    >
-                      ⚡ Nudge Rep
-                    </button>
+                  {/* Actions */}
+                  {canManage && (
+                    <div className="flex items-center justify-between pt-3 border-t border-surface-border gap-2">
+                      <div className="flex items-center gap-2">
+                        {flag.status === 'OPEN' && (
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => handleAcknowledge(flag.id)}
+                          >
+                            Acknowledge
+                          </Button>
+                        )}
+                        {flag.status !== 'RESOLVED' && (
+                          <Button
+                            variant="success"
+                            size="xs"
+                            leftIcon={<CheckCircle2 size={11} />}
+                            onClick={() => handleResolve(flag.id)}
+                          >
+                            Resolve
+                          </Button>
+                        )}
+                      </div>
+                      {flag.status !== 'RESOLVED' && (
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          leftIcon={<Bell size={11} />}
+                          onClick={() => handleNudge(flag.id)}
+                        >
+                          Nudge Rep
+                        </Button>
+                      )}
+                    </div>
                   )}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>

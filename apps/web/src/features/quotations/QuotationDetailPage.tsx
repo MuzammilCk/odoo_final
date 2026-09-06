@@ -93,15 +93,15 @@ export default function QuotationDetailPage() {
 
   // Line editing states
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
-  const [editQty, setEditQty] = useState<number>(1);
-  const [editDiscount, setEditDiscount] = useState<number>(0);
-  const [editPrice, setEditPrice] = useState<number>(0);
+  const [editQty, setEditQty] = useState<string>('1');
+  const [editDiscount, setEditDiscount] = useState<string>('0');
+  const [editPrice, setEditPrice] = useState<string>('0');
 
   // Add line modal
   const [isAddLineModalOpen, setIsAddLineModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [addQty, setAddQty] = useState(1);
-  const [addDiscount, setAddDiscount] = useState(0);
+  const [addQty, setAddQty] = useState<string>('1');
+  const [addDiscount, setAddDiscount] = useState<string>('0');
   const [addingLine, setAddingLine] = useState(false);
 
   // Action states
@@ -202,9 +202,9 @@ export default function QuotationDetailPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          quantity: editQty,
-          discountPercent: editDiscount,
-          unitPrice: editPrice,
+          quantity: Math.max(1, parseInt(editQty, 10) || 1),
+          discountPercent: Math.min(100, Math.max(0, parseFloat(editDiscount) || 0)),
+          unitPrice: Math.max(0, parseFloat(editPrice) || 0),
         }),
       });
       if (!res.ok) {
@@ -254,8 +254,8 @@ export default function QuotationDetailPage() {
         },
         body: JSON.stringify({
           productId: selectedProductId,
-          quantity: addQty,
-          discountPercent: addDiscount,
+          quantity: Math.max(1, parseInt(addQty, 10) || 1),
+          discountPercent: Math.min(100, Math.max(0, parseFloat(addDiscount) || 0)),
         }),
       });
       if (!res.ok) {
@@ -263,8 +263,8 @@ export default function QuotationDetailPage() {
         throw new Error(data.error || 'Failed to add line item');
       }
       setIsAddLineModalOpen(false);
-      setAddQty(1);
-      setAddDiscount(0);
+      setAddQty('1');
+      setAddDiscount('0');
       await fetchQuotation();
       fetchRecommendations();
     } catch (err: unknown) {
@@ -549,7 +549,11 @@ export default function QuotationDetailPage() {
               </div>
               {canEdit && (
                 <button
-                  onClick={() => setIsAddLineModalOpen(true)}
+                  onClick={() => {
+                    setAddQty('1');
+                    setAddDiscount('0');
+                    setIsAddLineModalOpen(true);
+                  }}
                   className="text-xs font-semibold text-brand-400 hover:text-brand-300 transition flex items-center gap-1 cursor-pointer"
                 >
                   <Plus size={13} />
@@ -596,7 +600,13 @@ export default function QuotationDetailPage() {
                                 type="number"
                                 min="1"
                                 value={editQty}
-                                onChange={(e) => setEditQty(Number(e.target.value))}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => setEditQty(e.target.value)}
+                                onBlur={() => {
+                                  if (editQty === '' || Number(editQty) < 1 || isNaN(Number(editQty))) {
+                                    setEditQty('1');
+                                  }
+                                }}
                                 className="w-16 bg-surface-base border border-surface-border rounded-lg px-2 py-1 text-center text-white text-xs font-mono focus:border-brand-500 focus:outline-none"
                               />
                             ) : (
@@ -611,7 +621,13 @@ export default function QuotationDetailPage() {
                                 min="0"
                                 step="0.01"
                                 value={editPrice}
-                                onChange={(e) => setEditPrice(Number(e.target.value))}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => setEditPrice(e.target.value)}
+                                onBlur={() => {
+                                  if (editPrice === '' || isNaN(Number(editPrice))) {
+                                    setEditPrice('0.00');
+                                  }
+                                }}
                                 className="w-20 bg-surface-base border border-surface-border rounded-lg px-2 py-1 text-right text-white text-xs font-mono focus:border-brand-500 focus:outline-none"
                               />
                             ) : (
@@ -627,7 +643,16 @@ export default function QuotationDetailPage() {
                                 max="100"
                                 step="0.1"
                                 value={editDiscount}
-                                onChange={(e) => setEditDiscount(Number(e.target.value))}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => setEditDiscount(e.target.value)}
+                                onBlur={() => {
+                                  if (editDiscount === '' || isNaN(Number(editDiscount))) {
+                                    setEditDiscount('0');
+                                  } else {
+                                    const val = Math.min(100, Math.max(0, parseFloat(editDiscount)));
+                                    setEditDiscount(String(val));
+                                  }
+                                }}
                                 className="w-16 bg-surface-base border border-surface-border rounded-lg px-2 py-1 text-right text-white text-xs font-mono focus:border-brand-500 focus:outline-none"
                               />
                             ) : (
@@ -679,9 +704,9 @@ export default function QuotationDetailPage() {
                                   <button
                                     onClick={() => {
                                       setEditingLineId(line.id);
-                                      setEditQty(line.quantity);
-                                      setEditDiscount(Number(line.discountPercent));
-                                      setEditPrice(Number(line.unitPrice));
+                                      setEditQty(String(line.quantity));
+                                      setEditDiscount(String(Number(line.discountPercent)));
+                                      setEditPrice(String(Number(line.unitPrice).toFixed(2)));
                                     }}
                                     className="p-1 text-slate-400 hover:text-white hover:bg-surface-elevated rounded transition cursor-pointer"
                                     title="Edit line"
@@ -903,7 +928,13 @@ export default function QuotationDetailPage() {
                     type="number"
                     min="1"
                     value={addQty}
-                    onChange={(e) => setAddQty(Number(e.target.value))}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setAddQty(e.target.value)}
+                    onBlur={() => {
+                      if (addQty === '' || Number(addQty) < 1 || isNaN(Number(addQty))) {
+                        setAddQty('1');
+                      }
+                    }}
                     className="w-full bg-surface-base border border-surface-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition font-mono"
                   />
                 </div>
@@ -918,7 +949,16 @@ export default function QuotationDetailPage() {
                     max="100"
                     step="0.1"
                     value={addDiscount}
-                    onChange={(e) => setAddDiscount(Number(e.target.value))}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setAddDiscount(e.target.value)}
+                    onBlur={() => {
+                      if (addDiscount === '' || isNaN(Number(addDiscount))) {
+                        setAddDiscount('0');
+                      } else {
+                        const val = Math.min(100, Math.max(0, parseFloat(addDiscount)));
+                        setAddDiscount(String(val));
+                      }
+                    }}
                     className="w-full bg-surface-base border border-surface-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition font-mono"
                   />
                 </div>

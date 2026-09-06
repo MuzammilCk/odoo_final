@@ -125,9 +125,9 @@ async function runFullVerification() {
     quantity: 5,
     discountPercent: 10,
   });
-  assert(line1.lines.length >= 1, `Line 1 added (Hardware: 5 units @ 10% discount)`);
-  assert(Number(line1.grandTotal) > 0, `Quotation recalculated: Grand total = $${Number(line1.grandTotal).toFixed(2)}`);
-  assert(Number(line1.marginAmount) > 0, `Margin computed: $${Number(line1.marginAmount).toFixed(2)} (${Number(line1.marginPercent).toFixed(1)}%)`);
+  assert(line1!.lines.length >= 1, `Line 1 added (Hardware: 5 units @ 10% discount)`);
+  assert(Number(line1!.grandTotal) > 0, `Quotation recalculated: Grand total = $${Number(line1!.grandTotal).toFixed(2)}`);
+  assert(Number(line1!.marginAmount) > 0, `Margin computed: $${Number(line1!.marginAmount).toFixed(2)} (${Number(line1!.marginPercent).toFixed(1)}%)`);
 
   // Step 2.3: Add Subscription Line
   const line2 = await addLine(quotation.id, {
@@ -135,7 +135,7 @@ async function runFullVerification() {
     quantity: 2,
     discountPercent: 5,
   });
-  assert(line2.lines.length === 2, `Line 2 added (Recurring Subscription: 2 seats)`);
+  assert(line2!.lines.length === 2, `Line 2 added (Recurring Subscription: 2 seats)`);
 
   // Step 2.4: Recommendation Engine (Upsell & Cross-sell)
   const recommendations = await getRecommendations(quotation.id);
@@ -144,7 +144,7 @@ async function runFullVerification() {
 
   // Step 2.5: Test Discount Governance & Risk Scoring (Contract 1)
   // Give high discount to trigger HIGH risk requiring Manager + Finance approval
-  const lineToDiscount = line2.lines.find((l) => l.productId === hardwareProduct!.id)!;
+  const lineToDiscount = line2!.lines.find((l) => l.productId === hardwareProduct!.id)!;
   await prisma.quotationLine.update({
     where: { id: lineToDiscount.id },
     data: { discountPercent: 25 }, // Acme Gold ceiling is 15% -> 10% overage -> HIGH risk

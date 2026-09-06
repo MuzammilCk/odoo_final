@@ -315,6 +315,38 @@ async function main() {
   }
   console.log(`  ✓ ${productDefs.length} products upserted`);
 
+  // ── 3.1 Warehouse Stock Levels for Physical Products ──────────────────────
+  console.log('  → Warehouse stock levels for physical products...');
+  const warehouses = await prisma.warehouse.findMany({ where: { isActive: true } });
+  if (warehouses.length > 0) {
+    const mainWh = warehouses.find((w) => w.name.includes('Main')) ?? warehouses[0];
+    const secondaryWh = warehouses.find((w) => w.id !== mainWh.id);
+    let stockUpsertCount = 0;
+
+    for (const p of productDefs) {
+      if (p.isSubscription) continue;
+      const productId = productMap[p.sku];
+      if (!productId) continue;
+
+      await prisma.stockLevel.upsert({
+        where: { warehouseId_productId: { warehouseId: mainWh.id, productId } },
+        update: { quantityOnHand: 50, quantityReserved: 0 },
+        create: { warehouseId: mainWh.id, productId, quantityOnHand: 50, quantityReserved: 0 },
+      });
+      stockUpsertCount++;
+
+      if (secondaryWh) {
+        await prisma.stockLevel.upsert({
+          where: { warehouseId_productId: { warehouseId: secondaryWh.id, productId } },
+          update: { quantityOnHand: 25, quantityReserved: 0 },
+          create: { warehouseId: secondaryWh.id, productId, quantityOnHand: 25, quantityReserved: 0 },
+        });
+        stockUpsertCount++;
+      }
+    }
+    console.log(`  ✓ ${stockUpsertCount} stock levels upserted across warehouses`);
+  }
+
   // ── 4. Historical Quotations (co-purchase training data) ──────────────────
   console.log('  → Historical quotations (co-purchase training data)...');
 

@@ -383,6 +383,7 @@ export default function FulfillmentDetailPage() {
                           type="number"
                           min="0"
                           value={currentAlloc?.quantity ?? 0}
+                          onFocus={(e) => e.target.select()}
                           onChange={(e) => {
                             const val = parseInt(e.target.value) || 0;
                             setOverrideAllocations((prev) => {

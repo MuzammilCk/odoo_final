@@ -18,10 +18,10 @@ import {
   Briefcase,
   ArrowRight,
   ShieldCheck,
-  Loader2,
   Sparkles,
   User,
 } from 'lucide-react';
+import { Button } from '../../components/ui/Button';
 
 type SignupRole = 'SALES_REP' | 'CUSTOMER';
 
@@ -354,27 +354,17 @@ export default function SignupPage() {
             </div>
 
             {/* ── Submit ── */}
-            <button
+            <Button
               id="signup-submit"
               type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-brand-600 hover:bg-brand-500 active:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl shadow-md shadow-brand-600/25 transition duration-150 flex items-center justify-center gap-2 cursor-pointer mt-2"
+              loading={loading}
+              size="lg"
+              className="w-full mt-2"
+              leftIcon={!loading ? <Sparkles size={14} /> : undefined}
+              rightIcon={!loading ? <ArrowRight size={14} /> : undefined}
             >
-              {loading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Creating Account…</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={15} />
-                  <span>
-                    Create {role === 'SALES_REP' ? 'Sales Rep' : 'Customer'} Account
-                  </span>
-                  <ArrowRight size={15} />
-                </>
-              )}
-            </button>
+              {loading ? 'Creating Account…' : `Create ${role === 'SALES_REP' ? 'Sales Rep' : 'Customer'} Account`}
+            </Button>
           </form>
 
           {/* Footer Navigation */}

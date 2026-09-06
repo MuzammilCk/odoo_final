@@ -1,154 +1,239 @@
 /**
- * LoginPage — email + password form
- * After login, redirects based on role:
- *   CUSTOMER   → /portal/quotations
- *   all others → /app/dashboard
+ * LoginPage — DealFlow360 authentication gate
  *
- * Spec refs: §8.17, §8.21
+ * UI/UX Upgrade:
+ * - Split-panel layout: left brand column (gradient mesh), right form column
+ * - Accessible form with connected labels and autocomplete attributes
+ * - IntelliSense-powered password toggle
+ * - Focused form layout with subtle enter animation
+ * - No raw confirm() dialogs
  */
 
 import { useState, type FormEvent } from 'react';
-import { Navigate, Link } from 'react-router-dom';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Mail, Lock, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 
 export default function LoginPage() {
-  const { login, user } = useAuth();
+  const { login, user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (isAuthenticated && user) {
+    return (
+      <Navigate
+        to={user.role === 'CUSTOMER' ? '/portal/quotations' : '/app/dashboard'}
+        replace
+      />
+    );
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError('');
+    setError(null);
     setLoading(true);
+
     try {
-      await login(email, password);
-    } catch (err) {
+      const loggedInUser = await login(email.trim(), password);
+
+      if (loggedInUser.role === 'CUSTOMER') {
+        navigate('/portal/quotations', { replace: true });
+      } else {
+        navigate('/app/dashboard', { replace: true });
+      }
+    } catch (err: unknown) {
       setError((err as Error).message);
     } finally {
       setLoading(false);
     }
   }
 
-  // Declarative redirect after successful login
-  if (user) {
-    return <Navigate to={user.role === 'CUSTOMER' ? '/portal/quotations' : '/app/dashboard'} replace />;
+  function handleQuickFill(demoEmail: string) {
+    setEmail(demoEmail);
+    setPassword('demo123');
+    setError(null);
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-base relative overflow-hidden px-4">
-      {/* Ambient background glows */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-600/20 rounded-full blur-[128px] pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-deal-500/15 rounded-full blur-[128px] pointer-events-none" />
-
-      <div className="w-full max-w-md relative z-10">
-        {/* Logo / title */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 text-white font-black text-xl shadow-lg shadow-brand-500/30 mb-3 ring-1 ring-white/20">
+    <div className="min-h-screen flex bg-surface-canvas">
+      {/* ── Left brand column ────────────────────────────────────── */}
+      <div className="hidden lg:flex lg:w-[44%] flex-col justify-between p-10 relative overflow-hidden bg-surface-base border-r border-surface-border">
+        {/* Background mesh */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse 80% 60% at 40% 30%, rgba(59,130,246,0.12) 0%, transparent 70%), radial-gradient(ellipse 60% 80% at 70% 70%, rgba(16,185,129,0.08) 0%, transparent 70%)',
+          }}
+        />
+        {/* Logo */}
+        <div className="relative flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-black text-base shadow-glow-brand ring-1 ring-white/20">
             D
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            Deal<span className="text-brand-400">Flow</span>360
-          </h1>
-          <p className="text-slate-400 mt-1 text-sm">Enterprise CPQ & Sales Operations Platform</p>
+          <div>
+            <div className="text-lg font-bold text-white tracking-tight">
+              Deal<span className="text-brand-400">Flow</span>360
+            </div>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">CPQ Engine</div>
+          </div>
         </div>
 
-        {/* Card */}
-        <div className="bg-surface-card/95 backdrop-blur-xl border border-surface-border rounded-2xl p-7 shadow-2xl shadow-black/70">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-lg font-bold text-white tracking-tight">Welcome back</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Enter your credentials to sign in</p>
+        {/* Feature highlights */}
+        <div className="relative space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold text-white tracking-tight leading-snug">
+              The commercial intelligence
+              <br />platform for serious ops teams
+            </h2>
+            <p className="mt-3 text-sm text-slate-400 leading-relaxed max-w-xs">
+              Quote, approve, fulfill, bill — all governed by a single source of commercial truth.
+            </p>
+          </div>
+          <div className="space-y-3">
+            {[
+              'Multi-tier approval workflows with risk gates',
+              'Real-time margin governance & discount control',
+              'Automated subscription billing & revenue recognition',
+            ].map(feature => (
+              <div key={feature} className="flex items-start gap-2.5">
+                <span className="w-4 h-4 rounded-full bg-brand-500/15 border border-brand-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-400" aria-hidden="true" />
+                </span>
+                <span className="text-xs text-slate-300">{feature}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="relative text-[11px] text-slate-600 font-mono">© 2025 DealFlow360. All rights reserved.</p>
+      </div>
+
+      {/* ── Right form column ────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col items-center justify-center p-8">
+        <div className="w-full max-w-sm animate-fade-in">
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center gap-2.5 mb-8">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-black text-sm">
+              D
             </div>
-            <span className="p-2 rounded-lg bg-surface-elevated text-brand-400 border border-surface-border">
-              <ShieldCheck size={18} />
+            <span className="text-base font-bold text-white">
+              Deal<span className="text-brand-400">Flow</span>360
             </span>
           </div>
 
+          <div className="mb-7">
+            <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Welcome back</h1>
+            <p className="mt-1 text-sm text-slate-400">Sign in to your account to continue</p>
+          </div>
+
           {error && (
-            <div id="login-error" className="mb-4 p-3 bg-rose-950/40 border border-rose-800/80 rounded-xl text-rose-300 text-xs flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0" />
+            <div className="mb-5 flex items-center gap-2.5 px-3.5 py-3 rounded-xl bg-rose-950/40 border border-rose-700/60 text-rose-300 text-sm" role="alert">
+              <AlertCircle size={15} aria-hidden="true" className="shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          <form id="login-form" onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-                Email Address
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                  <Mail size={16} />
-                </span>
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-surface-elevated/70 border border-surface-border rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
-                  placeholder="name@company.com"
-                />
-              </div>
-            </div>
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
+            <Input
+              label="Email address"
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              autoComplete="email"
+              required
+              prefixIcon={<Mail size={14} />}
+            />
 
-            <div>
-              <label htmlFor="password" className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-                Password
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                  <Lock size={16} />
-                </span>
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-surface-elevated/70 border border-surface-border rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
+            <Input
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+              required
+              prefixIcon={<Lock size={14} />}
+              suffix={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                >
+                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              }
+            />
 
-            <button
-              id="login-submit"
+            <Button
               type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-brand-600 hover:bg-brand-500 active:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl shadow-md shadow-brand-600/25 transition duration-150 flex items-center justify-center gap-2 cursor-pointer mt-2"
+              variant="primary"
+              size="lg"
+              loading={loading}
+              className="w-full mt-2"
+              rightIcon={!loading ? <ArrowRight size={14} /> : undefined}
             >
-              {loading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Signing in…</span>
-                </>
-              ) : (
-                <>
-                  <span>Sign in</span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
+              Sign in
+            </Button>
           </form>
 
-          {/* Sign up link */}
-          <div className="mt-6 pt-5 border-t border-surface-border text-center">
-            <p className="text-xs text-slate-400">
-              Don't have an account?{' '}
-              <Link
-                to="/signup"
-                className="text-brand-400 hover:text-brand-300 font-semibold underline underline-offset-4 ml-1"
-              >
-                Create an account →
-              </Link>
-            </p>
+          {/* Quick Demo Access */}
+          <div className="mt-6 pt-5 border-t border-surface-border">
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">
+                Quick Demo Access
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono">pwd: demo123</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { email: 'rep@demo.com', role: 'Sales Rep', name: 'Sarah' },
+                { email: 'manager@demo.com', role: 'Manager', name: 'Mike' },
+                { email: 'finance@demo.com', role: 'Finance Ops', name: 'Fiona' },
+                { email: 'admin@demo.com', role: 'Admin', name: 'Admin' },
+                { email: 'customer@acme.com', role: 'Customer Portal', name: 'Acme Corp', fullWidth: true },
+              ].map((acc) => (
+                <button
+                  key={acc.email}
+                  type="button"
+                  onClick={() => handleQuickFill(acc.email)}
+                  className={`text-left px-2.5 py-1.5 rounded-lg bg-surface-elevated/60 border border-surface-border hover:border-brand-500/40 hover:bg-surface-elevated transition-colors text-xs flex items-center justify-between group cursor-pointer ${
+                    acc.fullWidth ? 'col-span-2' : ''
+                  }`}
+                >
+                  <div className="truncate">
+                    <span className="font-medium text-slate-200 block truncate">{acc.role}</span>
+                    <span className="text-[10px] text-slate-400 truncate block">{acc.name} ({acc.email})</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-brand-400 opacity-70 group-hover:opacity-100 ml-1 shrink-0">
+                    Fill
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
+
+          <p className="mt-6 text-center text-sm text-slate-500">
+            Don't have an account?{' '}
+            <Link
+              to="/signup"
+              className="text-brand-400 hover:text-brand-300 font-semibold transition-colors duration-150"
+            >
+              Create account
+            </Link>
+          </p>
         </div>
       </div>
     </div>

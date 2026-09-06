@@ -120,7 +120,7 @@ export async function addLine(quotationId: string, input: AddLineInput) {
   await recalculateQuotation(quotationId);
 
   // 7. Return updated quotation with all lines
-  return prisma.quotation.findUnique({
+  return prisma.quotation.findUniqueOrThrow({
     where: { id: quotationId },
     include: {
       customer: { select: { id: true, name: true } },
@@ -193,7 +193,7 @@ export async function updateLine(quotationId: string, lineId: string, input: Upd
   await recalculateQuotation(quotationId);
 
   // 6. Return updated quotation with lines
-  return prisma.quotation.findUnique({
+  return prisma.quotation.findUniqueOrThrow({
     where: { id: quotationId },
     include: {
       customer: { select: { id: true, name: true } },
@@ -230,7 +230,7 @@ export async function deleteLine(quotationId: string, lineId: string) {
   await recalculateQuotation(quotationId);
 
   // 5. Return updated quotation
-  return prisma.quotation.findUnique({
+  return prisma.quotation.findUniqueOrThrow({
     where: { id: quotationId },
     include: {
       customer: { select: { id: true, name: true } },

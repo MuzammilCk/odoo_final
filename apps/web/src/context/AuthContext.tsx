@@ -36,7 +36,7 @@ export interface SignupPayload {
 interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthUser>;
   signup: (payload: SignupPayload) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
@@ -47,68 +47,23 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem('df360_token') || null;
+  });
+
   const [user, setUser] = useState<AuthUser | null>(() => {
     try {
+      const savedToken = localStorage.getItem('df360_token');
+      if (!savedToken) {
+        localStorage.removeItem('df360_user');
+        return null;
+      }
       const saved = localStorage.getItem('df360_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
   });
-  const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('df360_token') || null;
-  });
-
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await fetch('/api/v1/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!res.ok) {
-      const body = await res.json() as { error: string };
-      throw new Error(body.error ?? 'Login failed');
-    }
-
-    const body = await res.json() as { user: AuthUser; token: string };
-    setUser(body.user);
-    setToken(body.token);
-    try {
-      localStorage.setItem('df360_user', JSON.stringify(body.user));
-      localStorage.setItem('df360_token', body.token);
-    } catch (e) {
-      console.warn('Failed to save to localStorage', e);
-    }
-  }, []);
-
-  const signup = useCallback(async (payload: SignupPayload) => {
-    const res = await fetch('/api/v1/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const body = await res.json() as { error?: string; details?: { fieldErrors?: Record<string, string[]> } };
-      let errMsg = body.error ?? 'Signup failed';
-      if (body.details?.fieldErrors) {
-        const firstField = Object.values(body.details.fieldErrors).flat()[0];
-        if (firstField) errMsg = firstField;
-      }
-      throw new Error(errMsg);
-    }
-
-    const body = await res.json() as { user: AuthUser; token: string };
-    setUser(body.user);
-    setToken(body.token);
-    try {
-      localStorage.setItem('df360_user', JSON.stringify(body.user));
-      localStorage.setItem('df360_token', body.token);
-    } catch (e) {
-      console.warn('Failed to save to localStorage', e);
-    }
-  }, []);
 
   const logout = useCallback(() => {
     setUser(null);
@@ -121,8 +76,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const login = useCallback(async (email: string, password: string): Promise<AuthUser> => {
+    const res = await fetch('/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      throw new Error(body.error ?? body.message ?? 'Login failed. Please check your credentials.');
+    }
+
+    const body = (await res.json()) as { user: AuthUser; token: string };
+    setUser(body.user);
+    setToken(body.token);
+    try {
+      localStorage.setItem('df360_user', JSON.stringify(body.user));
+      localStorage.setItem('df360_token', body.token);
+    } catch (e) {
+      console.warn('Failed to save to localStorage', e);
+    }
+    return body.user;
+  }, []);
+
+  const signup = useCallback(async (payload: SignupPayload) => {
+    const res = await fetch('/api/v1/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const body = (await res.json()) as { error?: string; details?: { fieldErrors?: Record<string, string[]> } };
+      let errMsg = body.error ?? 'Signup failed';
+      if (body.details?.fieldErrors) {
+        const firstField = Object.values(body.details.fieldErrors).flat()[0];
+        if (firstField) errMsg = firstField;
+      }
+      throw new Error(errMsg);
+    }
+
+    const body = (await res.json()) as { user: AuthUser; token: string };
+    setUser(body.user);
+    setToken(body.token);
+    try {
+      localStorage.setItem('df360_user', JSON.stringify(body.user));
+      localStorage.setItem('df360_token', body.token);
+    } catch (e) {
+      console.warn('Failed to save to localStorage', e);
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, login, signup, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        login,
+        signup,
+        logout,
+        isAuthenticated: !!(user && token),
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
